@@ -1,0 +1,35 @@
+{
+  "name": "ProjectShot",
+  "tree": {
+    "$className": "DataModel",
+
+    "ReplicatedStorage": {
+      "SharedSource": {
+        "$path": "src/SharedSource"
+      },
+      "Packages": {
+        "$path": "Packages"
+      },
+      "ClientSource": {
+        "$path": "src/ClientSource"
+      }
+    },
+
+    "ServerScriptService": {
+      "KnitServer": {
+        "$path": "src/KnitServer"
+      },
+      "ServerSource": {
+        "$path": "src/ServerSource"
+      }
+    },
+
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "KnitClient": {
+          "$path": "src/KnitClient"
+        }
+      }
+    }
+  }
+}
