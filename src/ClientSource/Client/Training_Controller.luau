@@ -1,3 +1,4 @@
+local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -29,8 +30,41 @@ local ATTRIBUTE = TrainingConfig.Attribute
 
 local controls -- PlayerModule controls, loaded asynchronously
 local controlsWanted = true
+local useSink = false -- fallback when the PlayerModule can't be found: sink the movement input instead
+
+local SINK_ACTION = "TrainingInputSink"
+
+local function applySink()
+	if controlsWanted then
+		ContextActionService:UnbindAction(SINK_ACTION)
+	else
+		ContextActionService:BindActionAtPriority(
+			SINK_ACTION,
+			function()
+				return Enum.ContextActionResult.Sink
+			end,
+			false,
+			Enum.ContextActionPriority.High.Value,
+			Enum.KeyCode.W,
+			Enum.KeyCode.A,
+			Enum.KeyCode.S,
+			Enum.KeyCode.D,
+			Enum.KeyCode.Up,
+			Enum.KeyCode.Down,
+			Enum.KeyCode.Left,
+			Enum.KeyCode.Right,
+			Enum.KeyCode.Space,
+			Enum.KeyCode.Thumbstick1,
+			Enum.KeyCode.ButtonA
+		)
+	end
+end
 
 local function applyControls()
+	if useSink then
+		applySink()
+		return
+	end
 	if not controls then
 		return
 	end
@@ -171,9 +205,13 @@ function Training_Controller:KnitStart()
 	-- the PlayerModule loads asynchronously
 	task.spawn(function()
 		local playerScripts = WaitFor.Child(player, "PlayerScripts")
-		local moduleScript = playerScripts and WaitFor.Child(playerScripts, "PlayerModule", 60)
+		local moduleScript = playerScripts and WaitFor.Child(playerScripts, "PlayerModule", 10)
 		if not moduleScript then
-			warn("Training_Controller: PlayerModule not found, default controls can't be toggled")
+			-- no PlayerModule (custom player scripts?): the server freezes the character anyway, so just
+			-- sink the movement keys while training
+			useSink = true
+			controlsWanted = player:GetAttribute(ATTRIBUTE) == nil
+			applyControls()
 			return
 		end
 		local ok, module = pcall(require, moduleScript)

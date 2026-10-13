@@ -18,12 +18,14 @@
 		GrowTime    seconds of growing; rarer rarities grow faster
 		GrowthMultiplier  multiplier for growth points gained per unit of water
 		WaterGoal   total water (all players) that fully boosts the plant; the grow timer shrinks as the
-		            server approaches it (see RewardConfig)
+		            (derived from BalanceConfig unless set explicitly) 		            server approaches it (see RewardConfig)
 		BaseWeight  abstract weight (kg) of a fresh plant; it grows with the plant and scales the harvest rewards
 		Color/DarkColor  UI colors (body / border)
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local BalanceConfig = require(ReplicatedStorage.SharedSource.Datas.BalanceConfig)
 
 local PlantsConfig = {}
 
@@ -54,8 +56,9 @@ PlantsConfig.Selection = {
 -- scale = SeedlingScale * (1 + (points * Coefficient) ^ Exponent), Exponent < 1 => diminishing growth
 PlantsConfig.Growth = {
 	SeedlingScale = 0.2,
-	PointsPerWater = 1, -- growth points gained per unit of water poured on the plant
-	Coefficient = 0.25,
+	PointsPerWater = 1, -- base growth points per unit of water (the plant's goal normalises it, see GetGrowthMultiplier)
+	-- size ratio at the water goal = 1 + (PointsAtGoal * Coefficient) ^ Exponent = 1 + (1000 * 0.049) ^ 0.5 = 8
+	Coefficient = 0.049,
 	Exponent = 0.5,
 	TweenTime = 0.6,
 }
@@ -68,8 +71,7 @@ PlantsConfig.Rarities = {
 		Weight = 20,
 		GrowTime = 600,
 		GrowthMultiplier = 1,
-		WaterGoal = 250,
-		BaseWeight = 1,
+		BaseWeight = BalanceConfig.BaseWeight.Common,
 		Color = Color3.fromRGB(150, 214, 92),
 		DarkColor = Color3.fromRGB(58, 120, 46),
 	},
@@ -79,8 +81,7 @@ PlantsConfig.Rarities = {
 		Weight = 12,
 		GrowTime = 480,
 		GrowthMultiplier = 1,
-		WaterGoal = 220,
-		BaseWeight = 2,
+		BaseWeight = BalanceConfig.BaseWeight.Uncommon,
 		Color = Color3.fromRGB(86, 200, 168),
 		DarkColor = Color3.fromRGB(28, 112, 100),
 	},
@@ -90,8 +91,7 @@ PlantsConfig.Rarities = {
 		Weight = 7,
 		GrowTime = 360,
 		GrowthMultiplier = 1,
-		WaterGoal = 200,
-		BaseWeight = 4,
+		BaseWeight = BalanceConfig.BaseWeight.Rare,
 		Color = Color3.fromRGB(88, 160, 255),
 		DarkColor = Color3.fromRGB(34, 78, 168),
 	},
@@ -101,8 +101,7 @@ PlantsConfig.Rarities = {
 		Weight = 3,
 		GrowTime = 240,
 		GrowthMultiplier = 1,
-		WaterGoal = 180,
-		BaseWeight = 9,
+		BaseWeight = BalanceConfig.BaseWeight.Epic,
 		Color = Color3.fromRGB(190, 108, 255),
 		DarkColor = Color3.fromRGB(96, 40, 164),
 	},
@@ -112,8 +111,7 @@ PlantsConfig.Rarities = {
 		Weight = 1,
 		GrowTime = 120,
 		GrowthMultiplier = 1,
-		WaterGoal = 150,
-		BaseWeight = 25,
+		BaseWeight = BalanceConfig.BaseWeight.Legendary,
 		Color = Color3.fromRGB(255, 196, 56),
 		DarkColor = Color3.fromRGB(176, 104, 18),
 	},
@@ -165,25 +163,46 @@ end
 -- TESTING: when set, every plant grows in this many seconds. Set to nil for the real grow times.
 PlantsConfig.TestGrowTime = 20
 
-function PlantsConfig.GetGrowTime(plantId)
-	if PlantsConfig.TestGrowTime then
-		return PlantsConfig.TestGrowTime
-	end
+--- The real (configured) grow time, ignoring the testing override.
+function PlantsConfig.GetBaseGrowTime(plantId)
 	local plant = PlantsConfig.Plants[plantId]
 	local rarity = PlantsConfig.GetRarity(plantId)
 	return plant and (plant.GrowTime or (rarity and rarity.GrowTime)) or 600
 end
 
-function PlantsConfig.GetGrowthMultiplier(plantId)
-	local plant = PlantsConfig.Plants[plantId]
-	local rarity = PlantsConfig.GetRarity(plantId)
-	return plant and (plant.GrowthMultiplier or (rarity and rarity.GrowthMultiplier)) or 1
+function PlantsConfig.GetGrowTime(plantId)
+	if PlantsConfig.TestGrowTime then
+		return PlantsConfig.TestGrowTime
+	end
+	return PlantsConfig.GetBaseGrowTime(plantId)
 end
 
+--- Total water (all players together) that fully boosts the plant. Unless the plant / rarity sets
+--- WaterGoal explicitly it is derived from the reference population (see BalanceConfig):
+--- 100 players * 60% active * 1.5 water/s * grow time * 0.6.
 function PlantsConfig.GetWaterGoal(plantId)
 	local plant = PlantsConfig.Plants[plantId]
 	local rarity = PlantsConfig.GetRarity(plantId)
-	return plant and (plant.WaterGoal or (rarity and rarity.WaterGoal)) or 250
+	local explicit = plant and (plant.WaterGoal or (rarity and rarity.WaterGoal))
+	if explicit then
+		return explicit
+	end
+	local reference = BalanceConfig.Reference
+	local goal = reference.Players
+		* reference.ActiveFraction
+		* reference.WaterPerSecond
+		* PlantsConfig.GetBaseGrowTime(plantId)
+		* BalanceConfig.Goal.Fill
+	return math.max(math.floor(goal + 0.5), 1)
+end
+
+--- Growth points per unit of water. Normalised by the goal: reaching the water goal always yields
+--- BalanceConfig.PointsAtGoal points, so every plant has the same size at its own goal.
+function PlantsConfig.GetGrowthMultiplier(plantId)
+	local plant = PlantsConfig.Plants[plantId]
+	local rarity = PlantsConfig.GetRarity(plantId)
+	local multiplier = plant and (plant.GrowthMultiplier or (rarity and rarity.GrowthMultiplier)) or 1
+	return multiplier * BalanceConfig.PointsAtGoal / PlantsConfig.GetWaterGoal(plantId)
 end
 
 function PlantsConfig.GetBaseWeight(plantId)

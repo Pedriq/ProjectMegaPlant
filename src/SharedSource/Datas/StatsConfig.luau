@@ -62,12 +62,14 @@ StatsConfig.Order = {
 StatsConfig.Capacity = {
 	Base = 10,
 	Thresholds = {
-		{ Strength = 50, Capacity = 15 },
-		{ Strength = 150, Capacity = 20 },
-		{ Strength = 400, Capacity = 30 },
-		{ Strength = 1000, Capacity = 45 },
-		{ Strength = 2500, Capacity = 65 },
-		{ Strength = 6000, Capacity = 100 },
+		{ Strength = 120, Capacity = 14 }, -- the first "Bigger Can!": about a minute of Zone 1 training
+		{ Strength = 400, Capacity = 18 },
+		{ Strength = 1200, Capacity = 24 },
+		{ Strength = 3500, Capacity = 32 },
+		{ Strength = 9000, Capacity = 42 },
+		{ Strength = 22000, Capacity = 55 },
+		{ Strength = 55000, Capacity = 70 },
+		{ Strength = 130000, Capacity = 90 },
 	},
 }
 

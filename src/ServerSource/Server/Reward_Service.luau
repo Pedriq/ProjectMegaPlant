@@ -111,8 +111,14 @@ local function checkGoal()
 		stageIndex = 0
 	end
 
-	local total = Watering_Service:GetTotalWater(cycle.CycleId)
-	local fraction = total / math.max(PlantsConfig.GetWaterGoal(cycle.PlantId), 1)
+	-- every player counts for at most PlayerCapFraction of the goal, so no single player can trivialize the plant
+	local goal = math.max(PlantsConfig.GetWaterGoal(cycle.PlantId), 1)
+	local cap = goal * RewardConfig.Boost.PlayerCapFraction
+	local total = 0
+	for _, poured in pairs(Watering_Service:GetContributions(cycle.CycleId)) do
+		total += math.min(poured, cap)
+	end
+	local fraction = total / goal
 
 	PlantCycle_Service:SetBoost(fraction)
 
@@ -153,16 +159,24 @@ local function onPlantGrown(cycleId, plantId)
 	Reward_Service.Client.PlantFullyGrown:FireAll(plantId)
 
 	local contributions = Watering_Service:GetContributions(cycleId)
-	local totalPoured = 0
+	-- plain water share (shown to players) and the weighted share that splits the pool
+	local totalPoured, totalWeight = 0, 0
 	for _, poured in pairs(contributions) do
 		totalPoured += poured
+		totalWeight += poured ^ harvest.ShareExponent
 	end
 
 	for userId, poured in pairs(contributions) do
 		local player = Players:GetPlayerByUserId(userId)
 		if player and poured >= WaterConfig.MinWaterForPlantsGrown then
 			local share = totalPoured > 0 and poured / totalPoured or 0
-			local coins = math.floor(baseCoins + poured * harvest.CoinsPerWater + pool * share)
+			local poolShare = totalWeight > 0 and poured ^ harvest.ShareExponent / totalWeight or 0
+			local coins = math.floor(baseCoins + poured * harvest.CoinsPerWater + pool * poolShare)
+			local plantsGrownBefore = Stats_Service:GetStat(player, "PlantsGrown") or 0
+			local firstHarvest = plantsGrownBefore == 0
+			if firstHarvest then
+				coins += harvest.FirstHarvestBonus
+			end
 			Stats_Service:AddCoins(player, coins)
 			local plantsGrown = Stats_Service:AddStat(player, "PlantsGrown", 1)
 			Reward_Service.Client.PlantHarvested:Fire(player, {
@@ -171,6 +185,7 @@ local function onPlantGrown(cycleId, plantId)
 				PlantsGrown = plantsGrown,
 				Water = math.floor(poured + 0.5),
 				Share = share,
+				FirstHarvest = firstHarvest,
 				Weight = weight,
 			})
 		end

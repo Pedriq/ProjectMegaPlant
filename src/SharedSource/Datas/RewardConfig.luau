@@ -12,6 +12,8 @@
 	Harvest       When the timer ends, contributors get a payout based on rarity and how much they poured.
 ]]
 
+local BalanceConfig = require(game:GetService("ReplicatedStorage").SharedSource.Datas.BalanceConfig)
+
 local RewardConfig = {}
 
 RewardConfig.Pour = {
@@ -26,31 +28,36 @@ RewardConfig.Pour = {
 -- The grow timer shrinks by up to this fraction when the water goal is reached.
 RewardConfig.Boost = {
 	MaxFraction = 0.6,
+	-- one player counts for at most this fraction of the water goal (towards the boost and the stages),
+	-- so a single heavily upgraded player can't shorten the plant on their own
+	PlayerCapFraction = BalanceConfig.Goal.PlayerCapFraction,
 	MinSecondsChange = 1.5, -- the timer is only re-sent when it changes by at least this much
 }
 
 -- Fraction of the water goal at which each stage is reached.
 RewardConfig.Stages = {
-	{ Name = "Sprouting!", Fraction = 0.2, BonusCoins = 10 },
-	{ Name = "Budding!", Fraction = 0.4, BonusCoins = 15 },
-	{ Name = "Blooming!", Fraction = 0.6, BonusCoins = 20 },
-	{ Name = "Thriving!", Fraction = 0.8, BonusCoins = 30 },
-	{ Name = "MAX GROWTH!", Fraction = 1.0, BonusCoins = 50 },
+		{ Name = "Sprouting!", Fraction = 0.2, BonusCoins = 20 },
+	{ Name = "Budding!", Fraction = 0.4, BonusCoins = 30 },
+	{ Name = "Blooming!", Fraction = 0.6, BonusCoins = 45 },
+	{ Name = "Thriving!", Fraction = 0.8, BonusCoins = 70 },
+	{ Name = "MAX GROWTH!", Fraction = 1.0, BonusCoins = 120 },
 }
 
 RewardConfig.Harvest = {
-	-- payout = participation (BaseByRarity) + own water * CoinsPerWater + the player's SHARE of the prize pool (which scales with the plant's weight).
-	-- share = own water / all water poured into the plant, so the bigger the impact, the bigger the reward.
-	CoinsPerWater = 2,
+	-- payout = participation (BaseByRarity) + own water * CoinsPerWater + the player's SHARE of the prize pool.
+	-- The pool is the plant's weight (kg) * PoolPerKg. Shares are weighted by (water ^ ShareExponent): the more
+	-- you pour the more you earn, but top contributors can't take the whole pool.
+	CoinsPerWater = BalanceConfig.Harvest.CoinsPerWater,
+	PoolPerKg = BalanceConfig.Harvest.PoolPerKg,
+	ShareExponent = BalanceConfig.Harvest.ShareExponent,
+	FirstHarvestBonus = BalanceConfig.Harvest.FirstHarvestBonus, -- the first plant a player helps to grow
 	BaseByRarity = { -- everyone who helped gets this
-		Common = 20,
-		Uncommon = 30,
-		Rare = 50,
-		Epic = 80,
-		Legendary = 150,
+		Common = 30,
+		Uncommon = 45,
+		Rare = 70,
+		Epic = 110,
+		Legendary = 200,
 	},
-	-- the prize pool grows with the plant weight (kg): pool = weight * PoolPerKg
-	PoolPerKg = 10,
 }
 
 -- how often the shared goal / stages are re-evaluated (seconds)

@@ -43,17 +43,17 @@ JuiceConfig.Leaderboard = {
 
 ---- Multiplier per rarity: { min, max }. A tiny plant gives the min, a plant of SizeRatioForMax+ gives the max.
 JuiceConfig.Multipliers = {
-	Common = { 2, 3 },
-	Uncommon = { 3, 5 },
-	Rare = { 5, 8 },
-	Epic = { 8, 13 },
-	Legendary = { 13, 20 },
+	Common = { 1.5, 2.5 },
+	Uncommon = { 2, 4 },
+	Rare = { 3, 6 },
+	Epic = { 5, 10 },
+	Legendary = { 8, 16 },
 }
 -- size = scale / seedling scale at the end of the growth (see PlantGrowth); this ratio counts as "fully huge"
 JuiceConfig.SizeRatioForMax = 12
 -- the weakest / strongest multiplier in the table above, used to scale the visuals (glow, particles)
-JuiceConfig.VisualMin = 2
-JuiceConfig.VisualMax = 20
+JuiceConfig.VisualMin = 1.5
+JuiceConfig.VisualMax = 16
 
 ---- The pool in the world
 JuiceConfig.Pool = {

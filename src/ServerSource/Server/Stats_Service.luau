@@ -24,7 +24,8 @@ local function clamp(definition, value)
 		value = math.min(definition.Max, value)
 	end
 	if definition.ValueClass == "IntValue" then
-		value = math.floor(value + 0.5)
+		-- IntValue is a 32-bit integer: never let a stat run past it
+		value = math.min(math.floor(value + 0.5), 2147483647)
 	end
 	return value
 end

@@ -49,7 +49,7 @@ function Upgrade_Service:GetMultiplier(player, effect)
 	for upgradeId, config in pairs(UpgradesConfig.Upgrades) do
 		if config.Effect == effect then
 			local level = data and data[upgradeId] or 0
-			multiplier += config.BonusPerLevel * level
+			multiplier += UpgradesConfig.GetMultiplier(upgradeId, level) - 1
 		end
 	end
 	return multiplier

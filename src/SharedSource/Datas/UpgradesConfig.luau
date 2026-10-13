@@ -8,10 +8,13 @@
 		Effect         what it speeds up: "FillSpeed" (water collection) or "PourSpeed" (watering)
 		EffectName     short label used in the shop
 		(no max level: upgrades can be bought forever)
-		BasePrice      price of level 1
-		PriceGrowth    every further level costs this many times more (price = BasePrice * PriceGrowth ^ level)
-		BonusPerLevel  +this to the speed multiplier per level (0.15 = +15% per level)
+		Curve numbers (BasePrice, Bonus, Scale, Tail) come from BalanceConfig.Upgrades, where the three
+		phases (hook / plateau / mastery) are explained:
+		  price(level)      = BasePrice * GrowthEarly^min(level, SoftLevel) * GrowthLate^max(level - SoftLevel, 0)
+		  multiplier(level) = 1 + Bonus * (1 - e^(-level / Scale)) + Tail * level
 ]]
+
+local BalanceConfig = require(game:GetService("ReplicatedStorage").SharedSource.Datas.BalanceConfig)
 
 local UpgradesConfig = {}
 
@@ -30,9 +33,7 @@ UpgradesConfig.Upgrades = {
 		Icon = PLACEHOLDER_ICON, -- TODO: icon
 		Effect = "FillSpeed",
 		EffectName = "Fill speed",
-		BasePrice = 50,
-		PriceGrowth = 1.35,
-		BonusPerLevel = 0.15,
+		Curve = BalanceConfig.Upgrades.WaterCollectionSpeed,
 	},
 	WateringSpeed = {
 		DisplayName = "Watering Speed",
@@ -40,9 +41,7 @@ UpgradesConfig.Upgrades = {
 		Icon = PLACEHOLDER_ICON, -- TODO: icon
 		Effect = "PourSpeed",
 		EffectName = "Pour speed",
-		BasePrice = 75,
-		PriceGrowth = 1.4,
-		BonusPerLevel = 0.15,
+		Curve = BalanceConfig.Upgrades.WateringSpeed,
 	},
 }
 
@@ -80,17 +79,24 @@ function UpgradesConfig.GetAttributeName(upgradeId)
 	return UpgradesConfig.AttributePrefix .. upgradeId
 end
 
---- Price of the NEXT level for a player currently at `level`.
+--- Price of the NEXT level for a player currently at `level`. Cheap and steady for the first levels, then
+--- steeper; clamped to MaxPrice so it stays a sane integer at any level.
 function UpgradesConfig.GetPrice(upgradeId, level)
 	local config = UpgradesConfig.Upgrades[upgradeId]
-	-- exponential growth, clamped only so absurdly high levels can never overflow to infinity
-	return math.floor(math.min(config.BasePrice * config.PriceGrowth ^ level, 2 ^ 53) + 0.5)
+	local economy = BalanceConfig.Upgrades
+	level = math.max(level, 0)
+	local early = math.min(level, economy.SoftLevel)
+	local late = math.max(level - economy.SoftLevel, 0)
+	local price = config.Curve.BasePrice * economy.GrowthEarly ^ early * economy.GrowthLate ^ late
+	return math.floor(math.min(price, economy.MaxPrice) + 0.5)
 end
 
---- Speed multiplier granted by an upgrade at `level` (1 = no bonus).
+--- Speed multiplier granted by an upgrade at `level` (1 = no bonus): big early gains that flatten out,
+--- plus a thin linear tail so very high levels still matter a little (never overflows).
 function UpgradesConfig.GetMultiplier(upgradeId, level)
-	local config = UpgradesConfig.Upgrades[upgradeId]
-	return 1 + config.BonusPerLevel * level
+	local curve = UpgradesConfig.Upgrades[upgradeId].Curve
+	level = math.max(level, 0)
+	return 1 + curve.Bonus * (1 - math.exp(-level / curve.Scale)) + curve.Tail * level
 end
 
 return UpgradesConfig
