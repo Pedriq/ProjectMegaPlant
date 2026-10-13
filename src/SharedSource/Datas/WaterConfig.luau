@@ -31,7 +31,7 @@ WaterConfig.PlantPrompt = {
 	Path = { "Garden", "PlantBed" },
 	ObjectText = "Plant",
 	ActionText = "Hold to water",
-	MaxActivationDistance = 16,
+	MaxActivationDistance = 32, -- players can water from a distance (the server re-checks it + DistanceTolerance)
 }
 
 WaterConfig.Prompt = {

@@ -89,6 +89,7 @@ local function createEntry(player, canId)
 		Tilt = 0,
 		Rotation = nil,
 		SpoutPosition = nil,
+		TopPosition = nil,
 	}
 	model.Name = "CarriedWateringCan"
 	model:ScaleTo(0.01)
@@ -166,6 +167,7 @@ local function update(player, dt, plantTarget)
 		* CFrame.Angles(-entry.Tilt, 0, 0)
 		* CFrame.Angles(math.rad(offset.X), math.rad(offset.Y), math.rad(offset.Z))
 	entry.Model:PivotTo(cframe)
+	entry.TopPosition = position + Vector3.new(0, height * 0.4, 0)
 
 	-- spout position (used by the water stream)
 	local spout = entry.Spout
@@ -184,6 +186,12 @@ end
 function WateringCanVisual_Controller:GetSpoutPosition(player)
 	local entry = entries[player]
 	return entry and entry.SpoutPosition
+end
+
+--- World position just above the opening of the player's can, or nil if no can is shown.
+function WateringCanVisual_Controller:GetTopPosition(player)
+	local entry = entries[player]
+	return entry and entry.TopPosition
 end
 
 function WateringCanVisual_Controller:KnitStart()

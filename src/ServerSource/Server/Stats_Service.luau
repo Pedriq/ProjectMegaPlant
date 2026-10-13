@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Knit = require(ReplicatedStorage.Packages.Knit)
 local Signal = require(ReplicatedStorage.Packages.Signal)
 local StatsConfig = require(ReplicatedStorage.SharedSource.Datas.StatsConfig)
+local TrainingConfig = require(ReplicatedStorage.SharedSource.Datas.TrainingConfig)
 
 local Stats_Service = Knit.CreateService({
 	Name = "Stats_Service",
@@ -61,12 +62,17 @@ end
 
 ---- Movement speed
 
+--- Walk speed comes from the Mobility stat; it is 0 while the player is training.
 local function applyMovementSpeed(player)
 	local statsData = getStatsData(player)
 	local character = player.Character
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 	if humanoid and statsData then
-		humanoid.WalkSpeed = statsData.MovementSpeed
+		if player:GetAttribute(TrainingConfig.Attribute) then
+			humanoid.WalkSpeed = 0
+		else
+			humanoid.WalkSpeed = StatsConfig.GetWalkSpeed(statsData.Mobility)
+		end
 	end
 end
 
@@ -112,7 +118,7 @@ function Stats_Service:SetStat(player, statKey, value)
 	if valueObject then
 		valueObject.Value = newValue
 	end
-	if statKey == "MovementSpeed" then
+	if statKey == "Mobility" then
 		applyMovementSpeed(player)
 	end
 
@@ -155,6 +161,11 @@ end
 
 function Stats_Service:AddCoins(player, amount)
 	return Stats_Service:AddStat(player, "Coins", amount)
+end
+
+--- Re-applies the walk speed derived from Mobility (call after changing movement restrictions).
+function Stats_Service:ApplyMovementSpeed(player)
+	applyMovementSpeed(player)
 end
 
 --- Returns a copy of all stats, or nil.

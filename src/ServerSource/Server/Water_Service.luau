@@ -13,7 +13,8 @@ local ATTR = WaterConfig.Attributes
 	Owns how much water each player carries and which watering can they have equipped.
 	The amount lives on the server (float, so slow fills accumulate); the rounded value is
 	replicated through the player's `Water` attribute for UI and visuals.
-	The maximum is the player's `Capacity` stat.
+	The maximum is the watering can capacity derived from the player's Strength stat
+	(StatsConfig.GetCapacity).
 ]]
 local Water_Service = Knit.CreateService({
 	Name = "Water_Service",
@@ -34,8 +35,8 @@ end
 ---- Public API
 
 function Water_Service:GetCapacity(player)
-	local capacity = Stats_Service and Stats_Service:GetStat(player, "Capacity")
-	return capacity or StatsConfig.ByKey.Capacity.Default
+	local strength = Stats_Service and Stats_Service:GetStat(player, "Strength")
+	return StatsConfig.GetCapacity(strength or StatsConfig.ByKey.Strength.Default)
 end
 
 function Water_Service:GetWater(player)
@@ -110,9 +111,9 @@ end
 function Water_Service:KnitStart()
 	Stats_Service = Knit.GetService("Stats_Service")
 
-	-- capacity changed (upgrades): never carry more than the new capacity
+	-- strength changed: capacity may have changed, never carry more than the new capacity
 	Stats_Service.StatChanged:Connect(function(player, statKey)
-		if statKey == "Capacity" and water[player] then
+		if statKey == "Strength" and water[player] then
 			Water_Service:SetWater(player, water[player])
 		end
 	end)

@@ -11,7 +11,7 @@ local PlantsConfig = require(ReplicatedStorage.SharedSource.Datas.PlantsConfig)
 local StatsConfig = require(ReplicatedStorage.SharedSource.Datas.StatsConfig)
 
 local ATTR = WaterConfig.Attributes
-local capacityDefinition = StatsConfig.ByKey.Capacity
+local strengthDefinition = StatsConfig.ByKey.Strength
 
 local WaterState = {}
 
@@ -19,10 +19,11 @@ function WaterState.GetWater(player)
 	return player:GetAttribute(ATTR.Water) or 0
 end
 
+--- Watering can capacity, derived from the replicated Strength stat.
 function WaterState.GetCapacity(player)
 	local leaderstats = player:FindFirstChild(StatsConfig.Folder)
-	local value = leaderstats and leaderstats:FindFirstChild(capacityDefinition.DisplayName)
-	return value and value.Value or capacityDefinition.Default
+	local value = leaderstats and leaderstats:FindFirstChild(strengthDefinition.DisplayName)
+	return StatsConfig.GetCapacity(value and value.Value or strengthDefinition.Default)
 end
 
 function WaterState.GetCanId(player)
