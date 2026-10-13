@@ -32,7 +32,7 @@ local Reward_Service = Knit.CreateService({
 	},
 })
 
-local Watering_Service, PlantCycle_Service, Stats_Service
+local Watering_Service, PlantCycle_Service, Stats_Service, Plant_Service
 
 local random = Random.new()
 local pourState = {} -- [player] = { Water, Timer, Combo, LastBeat, Remainder }
@@ -146,7 +146,9 @@ local function onPlantGrown(cycleId, plantId)
 	local rarity = PlantsConfig.GetPlant(plantId) and PlantsConfig.GetPlant(plantId).Rarity
 	local harvest = RewardConfig.Harvest
 	local baseCoins = harvest.BaseByRarity[rarity] or 0
-	local pool = harvest.PoolByRarity[rarity] or 0
+	-- heavier plants pay more: the pool scales with the weight the plant reached
+	local weight = Plant_Service:GetWeight()
+	local pool = weight * harvest.PoolPerKg
 
 	Reward_Service.Client.PlantFullyGrown:FireAll(plantId)
 
@@ -169,6 +171,7 @@ local function onPlantGrown(cycleId, plantId)
 				PlantsGrown = plantsGrown,
 				Water = math.floor(poured + 0.5),
 				Share = share,
+				Weight = weight,
 			})
 		end
 	end
@@ -180,6 +183,7 @@ function Reward_Service:KnitStart()
 	Watering_Service = Knit.GetService("Watering_Service")
 	PlantCycle_Service = Knit.GetService("PlantCycle_Service")
 	Stats_Service = Knit.GetService("Stats_Service")
+	Plant_Service = Knit.GetService("Plant_Service")
 
 	Watering_Service.Poured:Connect(onPoured)
 	Watering_Service.PourStopped:Connect(function(player)

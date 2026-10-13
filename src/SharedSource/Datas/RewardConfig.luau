@@ -39,7 +39,7 @@ RewardConfig.Stages = {
 }
 
 RewardConfig.Harvest = {
-	-- payout = participation (BaseByRarity) + own water * CoinsPerWater + the player's SHARE of the prize pool.
+	-- payout = participation (BaseByRarity) + own water * CoinsPerWater + the player's SHARE of the prize pool (which scales with the plant's weight).
 	-- share = own water / all water poured into the plant, so the bigger the impact, the bigger the reward.
 	CoinsPerWater = 2,
 	BaseByRarity = { -- everyone who helped gets this
@@ -49,13 +49,8 @@ RewardConfig.Harvest = {
 		Epic = 80,
 		Legendary = 150,
 	},
-	PoolByRarity = { -- split between contributors in proportion to their impact
-		Common = 150,
-		Uncommon = 250,
-		Rare = 400,
-		Epic = 700,
-		Legendary = 1200,
-	},
+	-- the prize pool grows with the plant weight (kg): pool = weight * PoolPerKg
+	PoolPerKg = 10,
 }
 
 -- how often the shared goal / stages are re-evaluated (seconds)

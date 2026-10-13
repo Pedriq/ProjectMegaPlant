@@ -151,7 +151,8 @@ end
 local function onPlantHarvested(result)
 	Banner_Controller:Show({
 		Title = ("+%s coins!"):format(formatNumber(result.Coins)),
-		Subtitle = ("Your impact: %d%%  -  Plants Grown: %d"):format(
+		Subtitle = ("%.1f kg plant  -  Your impact: %d%%  -  Plants Grown: %d"):format(
+			result.Weight or 0,
 			math.floor((result.Share or 0) * 100 + 0.5),
 			result.PlantsGrown or 0
 		),

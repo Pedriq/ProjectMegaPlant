@@ -135,6 +135,23 @@ function Plant_Service:GetGrowthPoints()
 	return growthPoints
 end
 
+--- Current abstract weight (kg) of the plant on the bed, 0 if there is none.
+function Plant_Service:GetWeight()
+	if not currentPlantId then
+		return 0
+	end
+	return PlantGrowth.GetWeight(currentPlantId, growthPoints)
+end
+
+--- Replicates the weight (workspace attribute "PlantWeight") for the plant HUD.
+local function publishWeight()
+	local weight = currentPlantId and PlantGrowth.GetWeight(currentPlantId, growthPoints) or nil
+	workspace:SetAttribute("PlantWeight", weight and math.floor(weight * 10 + 0.5) / 10 or nil)
+	if currentModel then
+		currentModel:SetAttribute("Weight", weight)
+	end
+end
+
 function Plant_Service:Clear()
 	stopScaleTween()
 	if currentModel then
@@ -142,6 +159,7 @@ function Plant_Service:Clear()
 	end
 	currentModel, currentPlantId = nil, nil
 	growthPoints = 0
+	publishWeight()
 end
 
 --- Spawns the seedling of `plantId` on the plant bed (replacing any current plant).
@@ -163,6 +181,7 @@ function Plant_Service:Spawn(plantId)
 	currentModel, currentPlantId = model, plantId
 	model:SetAttribute("BedTop", bedTop)
 	CollectionService:AddTag(model, PlantsConfig.PlantTag)
+	publishWeight()
 
 	-- little pop-in
 	tweenToScale(model, bedTop, 0.01, seedlingScale, 0.8, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
@@ -178,6 +197,7 @@ function Plant_Service:SetGrowthPoints(points)
 	local fromScale = currentModel:GetScale()
 	growthPoints = math.max(points, 0)
 	currentModel:SetAttribute("GrowthPoints", growthPoints)
+	publishWeight()
 	tweenToScale(
 		currentModel,
 		currentModel:GetAttribute("BedTop"),

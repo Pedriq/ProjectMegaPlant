@@ -33,7 +33,7 @@ local function StatPill(props)
 		Name = props.Name,
 		AnchorPoint = Vector2.new(0, 0),
 		Position = props.Position,
-		Size = UDim2.fromScale(0.465, 0.26),
+		Size = UDim2.fromScale(0.3, 0.26),
 		BodyColor = props.BodyColor,
 		BorderColor = props.BorderColor,
 		Corner = 0.4,
@@ -42,7 +42,7 @@ local function StatPill(props)
 				Name = "Title",
 				AnchorPoint = Vector2.new(0, 0.5),
 				Position = UDim2.fromScale(0.05, 0.5),
-				Size = UDim2.fromScale(0.5, 0.62),
+				Size = UDim2.fromScale(0.42, 0.62),
 				XAlignment = Enum.TextXAlignment.Left,
 				Text = props.Title,
 			}),
@@ -50,7 +50,7 @@ local function StatPill(props)
 				Name = "Value",
 				AnchorPoint = Vector2.new(1, 0.5),
 				Position = UDim2.fromScale(0.96, 0.5),
-				Size = UDim2.fromScale(0.45, 0.8),
+				Size = UDim2.fromScale(0.52, 0.8),
 				XAlignment = Enum.TextXAlignment.Right,
 				Text = props.Value,
 			}),
@@ -60,7 +60,7 @@ end
 
 local BAR_POSITION = Vector2.new(0.24, 0.37)
 
-local function PlantHUD(cycle, now, shimmer, popTarget, totals, shake)
+local function PlantHUD(cycle, now, shimmer, popTarget, totals, shake, plantWeight)
 	local popScale = Vide.spring(popTarget, 0.35, 0.5)
 
 	-- water numbers count up smoothly instead of jumping
@@ -69,6 +69,11 @@ local function PlantHUD(cycle, now, shimmer, popTarget, totals, shake)
 	end, 0.3, 1)
 	local myWater = Vide.spring(function()
 		return totals.Mine()
+	end, 0.3, 1)
+
+	-- the weight eases to its new value like the water numbers
+	local shownWeight = Vide.spring(function()
+		return plantWeight()
 	end, 0.3, 1)
 
 	local function plantId()
@@ -270,23 +275,29 @@ local function PlantHUD(cycle, now, shimmer, popTarget, totals, shake)
 						Position = UDim2.fromScale(0.03, 0.7),
 						BodyColor = Color3.fromRGB(88, 170, 255),
 						BorderColor = Color3.fromRGB(34, 78, 168),
-						Title = "Total Water",
+						Title = "Water",
 						Value = function()
-							local goal = cycle().PlantId and PlantsConfig.GetWaterGoal(cycle().PlantId)
-							if not goal then
-								return formatCount(totalWater())
-							end
-							return ("%s / %s"):format(formatCount(totalWater()), formatCount(goal))
+							return formatCount(totalWater())
 						end,
 					}),
 					StatPill({
 						Name = "YourContribution",
-						Position = UDim2.fromScale(0.505, 0.7),
+						Position = UDim2.fromScale(0.35, 0.7),
 						BodyColor = Color3.fromRGB(255, 200, 70),
 						BorderColor = Color3.fromRGB(176, 104, 18),
-						Title = "Your Contribution",
+						Title = "You",
 						Value = function()
 							return formatCount(myWater())
+						end,
+					}),
+					StatPill({
+						Name = "PlantWeight",
+						Position = UDim2.fromScale(0.67, 0.7),
+						BodyColor = Color3.fromRGB(150, 214, 92),
+						Title = "Weight",
+						Value = function()
+							local weight = shownWeight()
+							return weight > 0 and ("%.1f kg"):format(weight) or "-"
 						end,
 					}),
 				},
@@ -347,8 +358,14 @@ function PlantHUD_Controller:KnitStart()
 		end
 	end)
 
+	-- abstract plant weight, replicated by the server as a workspace attribute
+	local plantWeight = source(workspace:GetAttribute("PlantWeight") or 0)
+	workspace:GetAttributeChangedSignal("PlantWeight"):Connect(function()
+		plantWeight(workspace:GetAttribute("PlantWeight") or 0)
+	end)
+
 	Vide.mount(function()
-		return PlantHUD(cycle, now, shimmer, popTarget, totals, shake)
+		return PlantHUD(cycle, now, shimmer, popTarget, totals, shake, plantWeight)
 	end, player:WaitForChild("PlayerGui"))
 end
 
