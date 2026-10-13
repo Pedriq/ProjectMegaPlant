@@ -1,4 +1,5 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local CollectionService = game:GetService("CollectionService")
 local TweenService = game:GetService("TweenService")
 
 local Knit = require(ReplicatedStorage.Packages.Knit)
@@ -161,6 +162,7 @@ function Plant_Service:Spawn(plantId)
 	model.Parent = workspace
 	currentModel, currentPlantId = model, plantId
 	model:SetAttribute("BedTop", bedTop)
+	CollectionService:AddTag(model, PlantsConfig.PlantTag)
 
 	-- little pop-in
 	tweenToScale(model, bedTop, 0.01, seedlingScale, 0.8, Enum.EasingStyle.Back, Enum.EasingDirection.Out)

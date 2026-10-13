@@ -19,10 +19,54 @@ local PlantHUD_Controller = Knit.CreateController({
 local player = Players.LocalPlayer
 local PlantCycle_Controller
 
-local PANEL_ASPECT = 4.6 -- width / height of the panel
+local PANEL_ASPECT = 3.7 -- width / height of the panel
 
-local function PlantHUD(cycle, now, shimmer, popTarget)
+local function formatCount(value)
+	local text = tostring(math.floor(value + 0.5))
+	return (text:reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", ""))
+end
+
+--- Label + value pill used for the water statistics.
+local function StatPill(props)
+	return Plastic.Panel({
+		Name = props.Name,
+		AnchorPoint = Vector2.new(0, 0),
+		Position = props.Position,
+		Size = UDim2.fromScale(0.465, 0.26),
+		BodyColor = props.BodyColor,
+		BorderColor = props.BorderColor,
+		Corner = 0.4,
+		Children = {
+			Plastic.Label({
+				Name = "Title",
+				AnchorPoint = Vector2.new(0, 0.5),
+				Position = UDim2.fromScale(0.05, 0.5),
+				Size = UDim2.fromScale(0.58, 0.62),
+				XAlignment = Enum.TextXAlignment.Left,
+				Text = props.Title,
+			}),
+			Plastic.Label({
+				Name = "Value",
+				AnchorPoint = Vector2.new(1, 0.5),
+				Position = UDim2.fromScale(0.96, 0.5),
+				Size = UDim2.fromScale(0.34, 0.8),
+				XAlignment = Enum.TextXAlignment.Right,
+				Text = props.Value,
+			}),
+		},
+	})
+end
+
+local function PlantHUD(cycle, now, shimmer, popTarget, totals)
 	local popScale = Vide.spring(popTarget, 0.35, 0.5)
+
+	-- water numbers count up smoothly instead of jumping
+	local totalWater = Vide.spring(function()
+		return totals.Total()
+	end, 0.3, 1)
+	local myWater = Vide.spring(function()
+		return totals.Mine()
+	end, 0.3, 1)
 
 	local function plantId()
 		return cycle().PlantId
@@ -72,7 +116,7 @@ local function PlantHUD(cycle, now, shimmer, popTarget)
 			Name = "Root",
 			AnchorPoint = Vector2.new(0.5, 0),
 			Position = UDim2.fromScale(0.5, 0.006),
-			Size = UDim2.fromScale(0.4, 0.14),
+			Size = UDim2.fromScale(0.4, 0.17),
 			BackgroundTransparency = 1,
 
 			create("UIAspectRatioConstraint")({
@@ -95,9 +139,9 @@ local function PlantHUD(cycle, now, shimmer, popTarget)
 					-- Plant icon plate
 					Plastic.Panel({
 						Name = "IconPlate",
-						AnchorPoint = Vector2.new(0, 0.5),
-						Position = UDim2.fromScale(0.02, 0.5),
-						Size = UDim2.fromScale(0.2, 0.86),
+						AnchorPoint = Vector2.new(0, 0),
+						Position = UDim2.fromScale(0.025, 0.07),
+						Size = UDim2.fromScale(0.16, 0.58),
 						BodyColor = function()
 							local r = rarity()
 							return r and r.Color or Color3.fromRGB(150, 214, 92)
@@ -133,8 +177,8 @@ local function PlantHUD(cycle, now, shimmer, popTarget)
 					Plastic.Label({
 						Name = "PlantName",
 						AnchorPoint = Vector2.new(0, 0),
-						Position = UDim2.fromScale(0.25, 0.08),
-						Size = UDim2.fromScale(0.45, 0.36),
+						Position = UDim2.fromScale(0.24, 0.06),
+						Size = UDim2.fromScale(0.45, 0.26),
 						XAlignment = Enum.TextXAlignment.Left,
 						Text = function()
 							if isSelecting() or not plantId() then
@@ -148,8 +192,8 @@ local function PlantHUD(cycle, now, shimmer, popTarget)
 					create("Frame")({
 						Name = "RarityChip",
 						AnchorPoint = Vector2.new(1, 0),
-						Position = UDim2.fromScale(0.97, 0.1),
-						Size = UDim2.fromScale(0.26, 0.3),
+						Position = UDim2.fromScale(0.97, 0.07),
+						Size = UDim2.fromScale(0.26, 0.22),
 						BackgroundTransparency = 1,
 						Visible = function()
 							return not isSelecting() and rarity() ~= nil
@@ -186,8 +230,8 @@ local function PlantHUD(cycle, now, shimmer, popTarget)
 					Plastic.Bar({
 						Name = "Progress",
 						AnchorPoint = Vector2.new(0, 0),
-						Position = UDim2.fromScale(0.25, 0.52),
-						Size = UDim2.fromScale(0.72, 0.38),
+						Position = UDim2.fromScale(0.24, 0.37),
+						Size = UDim2.fromScale(0.73, 0.27),
 						Progress = progress,
 						Shimmer = shimmer,
 						FillColor = function()
@@ -207,6 +251,28 @@ local function PlantHUD(cycle, now, shimmer, popTarget)
 							}),
 						},
 					}),
+
+					-- Water statistics: shared total + this player's own contribution
+					StatPill({
+						Name = "TotalWater",
+						Position = UDim2.fromScale(0.03, 0.7),
+						BodyColor = Color3.fromRGB(88, 170, 255),
+						BorderColor = Color3.fromRGB(34, 78, 168),
+						Title = "Total Water",
+						Value = function()
+							return formatCount(totalWater())
+						end,
+					}),
+					StatPill({
+						Name = "YourContribution",
+						Position = UDim2.fromScale(0.505, 0.7),
+						BodyColor = Color3.fromRGB(255, 200, 70),
+						BorderColor = Color3.fromRGB(176, 104, 18),
+						Title = "Your Contribution",
+						Value = function()
+							return formatCount(myWater())
+						end,
+					}),
 				},
 			}),
 		}),
@@ -216,6 +282,7 @@ end
 function PlantHUD_Controller:KnitStart()
 	PlantCycle_Controller = Knit.GetController("PlantCycle_Controller")
 	local cycle = PlantCycle_Controller.State
+	local totals = Knit.GetController("WaterTotals_Controller")
 
 	local now = source(workspace:GetServerTimeNow())
 	local shimmer = source(-1)
@@ -240,7 +307,7 @@ function PlantHUD_Controller:KnitStart()
 	end)
 
 	Vide.mount(function()
-		return PlantHUD(cycle, now, shimmer, popTarget)
+		return PlantHUD(cycle, now, shimmer, popTarget, totals)
 	end, player:WaitForChild("PlayerGui"))
 end
 

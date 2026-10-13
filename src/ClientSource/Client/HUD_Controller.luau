@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Knit = require(ReplicatedStorage.Packages.Knit)
 local Vide = require(ReplicatedStorage.Packages.Vide)
 local StatsConfig = require(ReplicatedStorage.SharedSource.Datas.StatsConfig)
+local WaterConfig = require(ReplicatedStorage.SharedSource.Datas.WaterConfig)
 
 local create = Vide.create
 local source = Vide.source
@@ -38,7 +39,8 @@ local function formatNumber(value)
 	return sign .. integer .. fraction
 end
 
-local function StatRow(definition, value, layoutOrder)
+--- `formatter` (optional) replaces the default number text with a custom function returning a string.
+local function StatRow(definition, value, layoutOrder, formatter)
 	return create("Frame")({
 		Name = definition.Key,
 		LayoutOrder = layoutOrder,
@@ -70,7 +72,7 @@ local function StatRow(definition, value, layoutOrder)
 				Position = UDim2.fromScale(0.12, 0.5),
 				Size = UDim2.fromScale(0.86, 0.85),
 				BackgroundTransparency = 1,
-				Text = function()
+				Text = formatter or function()
 					return formatNumber(value())
 				end,
 				TextScaled = true,
@@ -84,10 +86,10 @@ local function StatRow(definition, value, layoutOrder)
 	})
 end
 
-local function StatsHUD(values)
+local function StatsHUD(values, formatters)
 	local rows = {}
 	for index, definition in ipairs(StatsConfig.Order) do
-		rows[index] = StatRow(definition, values[definition.Key], index)
+		rows[index] = StatRow(definition, values[definition.Key], index, formatters[definition.Key])
 	end
 
 	return create("ScreenGui")({
@@ -136,8 +138,21 @@ function HUD_Controller:KnitStart()
 		values[definition.Key] = source(definition.Default)
 	end
 
+	-- water currently carried (replicated attribute), shown as "current / capacity" on the can row
+	local waterAttribute = WaterConfig.Attributes.Water
+	local water = source(player:GetAttribute(waterAttribute) or 0)
+	player:GetAttributeChangedSignal(waterAttribute):Connect(function()
+		water(player:GetAttribute(waterAttribute) or 0)
+	end)
+
+	local formatters = {
+		Capacity = function()
+			return ("%s / %s"):format(formatNumber(water()), formatNumber(values.Capacity()))
+		end,
+	}
+
 	Vide.mount(function()
-		return StatsHUD(values)
+		return StatsHUD(values, formatters)
 	end, player:WaitForChild("PlayerGui"))
 
 	local leaderstats = player:WaitForChild(StatsConfig.Folder)

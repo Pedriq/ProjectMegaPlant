@@ -8,11 +8,13 @@
 		ModelName   (optional) name of the model in the Fruits folder, defaults to the plant id
 		Weight      (optional) overrides the rarity weight (relative selection chance)
 		GrowTime    (optional) overrides the rarity grow time, in seconds
+		GrowthMultiplier (optional) overrides the rarity multiplier for growth gained from watering
 
 	Rarity fields:
 		Order       sort order, lower = more common
 		Weight      relative chance of ONE plant of this rarity being selected
 		GrowTime    seconds of growing; rarer rarities grow faster
+		GrowthMultiplier  multiplier for growth points gained per unit of water
 		Color/DarkColor  UI colors (body / border)
 ]]
 
@@ -26,6 +28,7 @@ PlantsConfig.AssetFolderNames = { "Assets", "Aseets" }
 PlantsConfig.FruitsFolderName = "Fruits"
 PlantsConfig.GardenName = "Garden"
 PlantsConfig.PlantBedName = "PlantBed"
+PlantsConfig.PlantTag = "GardenPlant" -- CollectionService tag on the plant model currently in the world
 
 ---- Cycle
 PlantsConfig.Cycle = {
@@ -46,6 +49,7 @@ PlantsConfig.Selection = {
 -- scale = SeedlingScale * (1 + (points * Coefficient) ^ Exponent), Exponent < 1 => diminishing growth
 PlantsConfig.Growth = {
 	SeedlingScale = 0.2,
+	PointsPerWater = 1, -- growth points gained per unit of water poured on the plant
 	Coefficient = 0.25,
 	Exponent = 0.5,
 	TweenTime = 0.6,
@@ -58,6 +62,7 @@ PlantsConfig.Rarities = {
 		DisplayName = "Common",
 		Weight = 20,
 		GrowTime = 600,
+		GrowthMultiplier = 1,
 		Color = Color3.fromRGB(150, 214, 92),
 		DarkColor = Color3.fromRGB(58, 120, 46),
 	},
@@ -66,6 +71,7 @@ PlantsConfig.Rarities = {
 		DisplayName = "Uncommon",
 		Weight = 12,
 		GrowTime = 480,
+		GrowthMultiplier = 1,
 		Color = Color3.fromRGB(86, 200, 168),
 		DarkColor = Color3.fromRGB(28, 112, 100),
 	},
@@ -74,6 +80,7 @@ PlantsConfig.Rarities = {
 		DisplayName = "Rare",
 		Weight = 7,
 		GrowTime = 360,
+		GrowthMultiplier = 1,
 		Color = Color3.fromRGB(88, 160, 255),
 		DarkColor = Color3.fromRGB(34, 78, 168),
 	},
@@ -82,6 +89,7 @@ PlantsConfig.Rarities = {
 		DisplayName = "Epic",
 		Weight = 3,
 		GrowTime = 240,
+		GrowthMultiplier = 1,
 		Color = Color3.fromRGB(190, 108, 255),
 		DarkColor = Color3.fromRGB(96, 40, 164),
 	},
@@ -90,6 +98,7 @@ PlantsConfig.Rarities = {
 		DisplayName = "Legendary",
 		Weight = 1,
 		GrowTime = 120,
+		GrowthMultiplier = 1,
 		Color = Color3.fromRGB(255, 196, 56),
 		DarkColor = Color3.fromRGB(176, 104, 18),
 	},
@@ -142,6 +151,12 @@ function PlantsConfig.GetGrowTime(plantId)
 	local plant = PlantsConfig.Plants[plantId]
 	local rarity = PlantsConfig.GetRarity(plantId)
 	return plant and (plant.GrowTime or (rarity and rarity.GrowTime)) or 600
+end
+
+function PlantsConfig.GetGrowthMultiplier(plantId)
+	local plant = PlantsConfig.Plants[plantId]
+	local rarity = PlantsConfig.GetRarity(plantId)
+	return plant and (plant.GrowthMultiplier or (rarity and rarity.GrowthMultiplier)) or 1
 end
 
 --- Returns the model template for a plant, or nil if it's missing.
