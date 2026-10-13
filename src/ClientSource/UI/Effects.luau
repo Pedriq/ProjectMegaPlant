@@ -59,7 +59,7 @@ function Effects.FloatText(position, text, options)
 	label.BackgroundTransparency = 1
 	label.Text = text
 	label.TextScaled = true
-	label.Font = Enum.Font.FredokaOne
+	label.Font = Enum.Font.GothamBold
 	label.TextColor3 = options.Color or Color3.fromRGB(255, 255, 255)
 	label.TextStrokeColor3 = options.StrokeColor or Color3.fromRGB(40, 30, 10)
 	label.TextStrokeTransparency = 0

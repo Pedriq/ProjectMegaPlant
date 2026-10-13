@@ -35,9 +35,9 @@ local shopPart -- the part the open shop belongs to (for the "walked away" check
 local shopPrompt
 local distanceConnection
 
-local BUY_READY = Color3.fromRGB(96, 214, 84)
+local BUY_READY = Color3.fromRGB(86, 178, 100)
 local BUY_READY_BORDER = Color3.fromRGB(36, 120, 48)
-local BUY_DISABLED = Color3.fromRGB(150, 156, 170)
+local BUY_DISABLED = Color3.fromRGB(64, 72, 68)
 local BUY_DISABLED_BORDER = Color3.fromRGB(78, 82, 96)
 local BUY_MAX = Color3.fromRGB(255, 200, 70)
 local BUY_MAX_BORDER = Color3.fromRGB(170, 100, 20)
@@ -63,7 +63,7 @@ local function UpgradeCard(upgradeId, layoutOrder, level, coins, onBuy)
 		Name = upgradeId,
 		LayoutOrder = layoutOrder,
 		Size = UDim2.fromScale(1, 0.475),
-		BodyColor = Color3.fromRGB(96, 178, 255),
+		BodyColor = Color3.fromRGB(110, 168, 226),
 		BorderColor = Color3.fromRGB(30, 78, 170),
 		Corner = 0.2,
 		Children = {
@@ -138,6 +138,7 @@ local function UpgradeCard(upgradeId, layoutOrder, level, coins, onBuy)
 			-- buy button
 			Plastic.Panel({
 				Name = "BuyButton",
+					Style = "Accent",
 				AnchorPoint = Vector2.new(1, 0.5),
 				Position = UDim2.fromScale(0.97, 0.5),
 				Size = UDim2.fromScale(0.25, 0.62),
@@ -246,7 +247,7 @@ local function ShopUI(levels, coins, onBuy, onClose)
 						AnchorPoint = Vector2.new(1, 0),
 						Position = UDim2.fromScale(0.86, 0.035),
 						Size = UDim2.fromScale(0.3, 0.085),
-						BodyColor = Color3.fromRGB(255, 205, 80),
+						BodyColor = Color3.fromRGB(232, 190, 90),
 						BorderColor = Color3.fromRGB(170, 100, 20),
 						Corner = 0.5,
 						Children = {
@@ -265,10 +266,11 @@ local function ShopUI(levels, coins, onBuy, onClose)
 					-- close button
 					Plastic.Panel({
 						Name = "Close",
+						Style = "Accent",
 						AnchorPoint = Vector2.new(1, 0),
 						Position = UDim2.fromScale(0.97, 0.025),
 						Size = UDim2.fromScale(0.09, 0.1),
-						BodyColor = Color3.fromRGB(255, 104, 104),
+						BodyColor = Color3.fromRGB(196, 86, 86),
 						BorderColor = Color3.fromRGB(150, 36, 52),
 						Corner = 0.35,
 						Children = {

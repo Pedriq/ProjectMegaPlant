@@ -57,9 +57,9 @@ local function StatText(props)
 		Text = props.Text,
 		TextScaled = true,
 		TextXAlignment = Enum.TextXAlignment.Left,
-		Font = Enum.Font.FredokaOne,
+		Font = Enum.Font.GothamBold,
 		TextColor3 = props.Color or Color3.fromRGB(255, 255, 255),
-		TextStrokeTransparency = 0,
+		TextStrokeTransparency = 0.55,
 		TextStrokeColor3 = TEXT_STROKE,
 	})
 end

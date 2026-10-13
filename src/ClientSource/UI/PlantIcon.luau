@@ -38,7 +38,7 @@ return function(plantId, props)
 		label.BackgroundTransparency = 1
 		label.Text = "?"
 		label.TextScaled = true
-		label.Font = Enum.Font.FredokaOne
+		label.Font = Enum.Font.GothamBold
 		label.TextColor3 = Color3.fromRGB(255, 255, 255)
 		label.Parent = viewport
 		return viewport

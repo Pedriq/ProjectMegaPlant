@@ -1,6 +1,8 @@
 --[[
-	Shared "glossy plastic" look (Grow a Garden-inspired) used by the plant HUD and the selection animation.
+	Shared UI kit: a clean, minimal look inspired by Grow a Garden. Dark flat surfaces, a thin outline tinted
+	by the accent color, and a very faint Stud-material texture for depth.
 	Everything is Scale-based; outlines are built from nested frames instead of pixel strokes.
+	(The module is still called Plastic so existing requires keep working.)
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -10,19 +12,38 @@ local create = Vide.create
 
 local Plastic = {}
 
-Plastic.Font = Enum.Font.FredokaOne
+Plastic.Font = Enum.Font.GothamBold
+
+-- Roblox "Stud" material texture, used as a faint overlay on surfaces
+Plastic.StudTexture = "rbxassetid://139348939021356"
+-- texture density only (not layout): size of one tile in pixels
+local STUD_TILE = UDim2.fromOffset(64, 64)
 
 Plastic.Colors = {
-	PanelBorder = Color3.fromRGB(38, 94, 52),
-	PanelBody = Color3.fromRGB(104, 204, 86),
-	TrackBorder = Color3.fromRGB(28, 58, 40),
-	TrackBody = Color3.fromRGB(46, 84, 58),
-	FillGreen = Color3.fromRGB(176, 255, 84),
-	FillGold = Color3.fromRGB(255, 214, 72),
-	Text = Color3.fromRGB(255, 255, 255),
-	TextStroke = Color3.fromRGB(24, 52, 34),
-	Gold = Color3.fromRGB(255, 206, 64),
+	PanelBody = Color3.fromRGB(26, 31, 28),
+	PanelBorder = Color3.fromRGB(70, 84, 74),
+	TrackBorder = Color3.fromRGB(46, 54, 49),
+	TrackBody = Color3.fromRGB(14, 18, 16),
+	FillGreen = Color3.fromRGB(128, 214, 124),
+	FillGold = Color3.fromRGB(238, 196, 92),
+	Text = Color3.fromRGB(246, 248, 246),
+	TextStroke = Color3.fromRGB(8, 12, 10),
+	Gold = Color3.fromRGB(240, 196, 90),
 }
+
+local SURFACE = Plastic.Colors.PanelBody
+local NEUTRAL_BORDER = Plastic.Colors.PanelBorder
+local BLACK = Color3.new(0, 0, 0)
+
+--- Applies `transform` to a color that may be nil, a Color3 or a reactive function.
+local function map(value, transform)
+	if type(value) == "function" then
+		return function()
+			return transform(value())
+		end
+	end
+	return transform(value)
+end
 
 --- Appends `child` (an instance or a list of them) to the props table used by `create`.
 local function append(props, children)
@@ -34,40 +55,64 @@ local function append(props, children)
 	return props
 end
 
---- Glossy two-layer panel: thin dark rim (a bit thicker at the bottom for a 3D lip), colored body, white highlight.
---- props: Name, AnchorPoint, Position, Size, BodyColor, BorderColor, Corner (0-0.5, default 0.28),
----        Gloss (default true), ZIndex, LayoutOrder, Children (list)
---- Children are parented to the body; RootChildren (list) to the outer rim frame (e.g. a UIScale).
+--- The faint stud texture, clipped to the rounded shape it sits in.
+local function studs(corner, transparency)
+	return create("ImageLabel")({
+		Name = "Studs",
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+		Image = Plastic.StudTexture,
+		ScaleType = Enum.ScaleType.Tile,
+		TileSize = STUD_TILE,
+		ImageTransparency = transparency,
+
+		create("UICorner")({ CornerRadius = UDim.new(corner, 0) }),
+	})
+end
+
+--- Flat two-layer panel: thin outline + body, with a faint stud texture.
+--- props: Name, AnchorPoint, Position, Size, BodyColor (the accent), BorderColor (only used if there is no
+---        BodyColor), Style ("Surface" default: dark surface with an accent-tinted outline;
+---        "Accent": solid accent color, for buttons and chips), Corner (0-0.5, default 0.28),
+---        Studs (default true), ZIndex, LayoutOrder, Children (list)
+--- Children are parented to the body; RootChildren (list) to the outer outline frame (e.g. a UIScale).
 function Plastic.Panel(props)
-	local corner = props.Corner or 0.28
+	local corner = (props.Corner or 0.28) * 0.65
+	local solid = props.Style == "Accent"
+	local accent = props.BodyColor ~= nil and props.BodyColor or props.BorderColor
+
+	local bodyColor = map(accent, function(color)
+		if not color then
+			return SURFACE
+		end
+		if solid then
+			return color:Lerp(BLACK, 0.12)
+		end
+		return SURFACE:Lerp(color, 0.14)
+	end)
+	local borderColor = map(accent, function(color)
+		if not color then
+			return NEUTRAL_BORDER
+		end
+		if solid then
+			return color:Lerp(BLACK, 0.45)
+		end
+		return SURFACE:Lerp(color, 0.55)
+	end)
 
 	local body = {
 		Name = "Body",
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.47),
-		Size = UDim2.fromScale(0.987, 0.92),
-		BackgroundColor3 = props.BodyColor or Plastic.Colors.PanelBody,
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromScale(0.986, 0.95),
+		BackgroundColor3 = bodyColor,
 		BorderSizePixel = 0,
 
 		create("UICorner")({ CornerRadius = UDim.new(corner, 0) }),
-		create("UIGradient")({
-			Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(196, 196, 196)),
-			Rotation = 90,
-		}),
 	}
 
-	if props.Gloss ~= false then
-		body[#body + 1] = create("Frame")({
-			Name = "Gloss",
-			AnchorPoint = Vector2.new(0.5, 0),
-			Position = UDim2.fromScale(0.5, 0.05),
-			Size = UDim2.fromScale(0.94, 0.36),
-			BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-			BackgroundTransparency = 0.78,
-			BorderSizePixel = 0,
-
-			create("UICorner")({ CornerRadius = UDim.new(0.5, 0) }),
-		})
+	if props.Studs ~= false then
+		body[#body + 1] = studs(corner, solid and 0.86 or 0.93)
 	end
 
 	append(body, props.Children)
@@ -79,7 +124,7 @@ function Plastic.Panel(props)
 		Size = props.Size,
 		ZIndex = props.ZIndex,
 		LayoutOrder = props.LayoutOrder,
-		BackgroundColor3 = props.BorderColor or Plastic.Colors.PanelBorder,
+		BackgroundColor3 = borderColor,
 		BorderSizePixel = 0,
 
 		create("UICorner")({ CornerRadius = UDim.new(corner, 0) }),
@@ -88,7 +133,7 @@ function Plastic.Panel(props)
 	return create("Frame")(append(root, props.RootChildren))
 end
 
---- White text with a dark outline, fitted to its box (TextScaled).
+--- Clean white text with a soft outline, fitted to its box (TextScaled).
 --- props: Name, Text (string or function), AnchorPoint, Position, Size, XAlignment, Color, ZIndex
 function Plastic.Label(props)
 	return create("TextLabel")({
@@ -103,13 +148,13 @@ function Plastic.Label(props)
 		Font = Plastic.Font,
 		TextColor3 = props.Color or Plastic.Colors.Text,
 		TextStrokeColor3 = Plastic.Colors.TextStroke,
-		TextStrokeTransparency = 0,
+		TextStrokeTransparency = 0.6,
 		TextXAlignment = props.XAlignment or Enum.TextXAlignment.Center,
 		TextTransparency = props.TextTransparency,
 	})
 end
 
---- Progress bar with glossy fill and an animated shimmer.
+--- Flat progress bar with a faint stud texture on the fill and an optional shimmer.
 --- props: Name, AnchorPoint, Position, Size, Progress (function -> 0..1), FillColor (function or Color3),
 ---        Shimmer (function -> number used as gradient offset -1..1), Children (overlay, e.g. a timer label)
 function Plastic.Bar(props)
@@ -122,21 +167,7 @@ function Plastic.Bar(props)
 		BorderSizePixel = 0,
 
 		create("UICorner")({ CornerRadius = UDim.new(0.5, 0) }),
-		create("UIGradient")({
-			Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(190, 190, 190)),
-			Rotation = 90,
-		}),
-		create("Frame")({
-			Name = "Gloss",
-			AnchorPoint = Vector2.new(0.5, 0),
-			Position = UDim2.fromScale(0.5, 0.1),
-			Size = UDim2.fromScale(0.94, 0.38),
-			BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-			BackgroundTransparency = 0.6,
-			BorderSizePixel = 0,
-
-			create("UICorner")({ CornerRadius = UDim.new(0.5, 0) }),
-		}),
+		studs(0.5, 0.82),
 	}
 
 	if props.Shimmer then
@@ -151,7 +182,7 @@ function Plastic.Bar(props)
 				Transparency = NumberSequence.new({
 					NumberSequenceKeypoint.new(0, 1),
 					NumberSequenceKeypoint.new(0.4, 1),
-					NumberSequenceKeypoint.new(0.5, 0.55),
+					NumberSequenceKeypoint.new(0.5, 0.65),
 					NumberSequenceKeypoint.new(0.6, 1),
 					NumberSequenceKeypoint.new(1, 1),
 				}),
@@ -165,8 +196,8 @@ function Plastic.Bar(props)
 	local inner = {
 		Name = "Track",
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.47),
-		Size = UDim2.fromScale(0.988, 0.88),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromScale(0.99, 0.86),
 		BackgroundColor3 = Plastic.Colors.TrackBody,
 		BorderSizePixel = 0,
 		ClipsDescendants = true,

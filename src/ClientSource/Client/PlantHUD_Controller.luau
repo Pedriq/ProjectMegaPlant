@@ -142,6 +142,7 @@ local function PlantHUD(cycle, now, shimmer, popTarget, totals, shake)
 					-- Plant icon plate
 					Plastic.Panel({
 						Name = "IconPlate",
+						Studs = false,
 						AnchorPoint = Vector2.new(0, 0),
 						Position = UDim2.fromScale(0.025, 0.07),
 						Size = UDim2.fromScale(0.16, 0.58),
@@ -204,6 +205,7 @@ local function PlantHUD(cycle, now, shimmer, popTarget, totals, shake)
 
 						Plastic.Panel({
 							Name = "Chip",
+							Style = "Accent",
 							Size = UDim2.fromScale(1, 1),
 							Corner = 0.5,
 							BodyColor = function()
