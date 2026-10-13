@@ -336,6 +336,11 @@ local function play(state)
 		return SelectionOverlay(reel, state.PlantId, values)
 	end, player:WaitForChild("PlayerGui"))
 
+	local audio = Knit.GetController("Audio_Controller")
+	local plant = PlantsConfig.GetPlant(state.PlantId)
+	local lastCard = 0
+	local revealed = false
+
 	local connection
 	local tornDown = false
 	local function teardown()
@@ -366,7 +371,20 @@ local function play(state)
 
 			-- easeOutQuart: fast start, long smooth slowdown onto the winner
 			local scroll = math.clamp(t / selection.ScrollTime, 0, 1)
-			values.card(Anim.EaseOutQuart(scroll) * (selection.WinnerIndex - 1))
+			local card = Anim.EaseOutQuart(scroll) * (selection.WinnerIndex - 1)
+			values.card(card)
+
+			-- tick every time a card passes the marker (slower and lower as the reel slows down)
+			local passed = math.floor(card + 0.5)
+			if passed ~= lastCard then
+				lastCard = passed
+				audio:Play("CardTick", { Pitch = 1.25 - 0.5 * scroll })
+			end
+			-- the winner is revealed: a sting that gets bigger with the rarity
+			if not revealed and t >= selection.ScrollTime then
+				revealed = true
+				audio:Play("Reveal" .. (plant and plant.Rarity or "Common"))
+			end
 
 			local reveal = math.clamp((t - selection.ScrollTime) / REVEAL_IN, 0, 1)
 			values.reveal(reveal)

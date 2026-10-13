@@ -9,12 +9,15 @@
 		Weight      (optional) overrides the rarity weight (relative selection chance)
 		GrowTime    (optional) overrides the rarity grow time, in seconds
 		GrowthMultiplier (optional) overrides the rarity multiplier for growth gained from watering
+		WaterGoal   (optional) overrides the rarity water goal (see below)
 
 	Rarity fields:
 		Order       sort order, lower = more common
 		Weight      relative chance of ONE plant of this rarity being selected
 		GrowTime    seconds of growing; rarer rarities grow faster
 		GrowthMultiplier  multiplier for growth points gained per unit of water
+		WaterGoal   total water (all players) that fully boosts the plant; the grow timer shrinks as the
+		            server approaches it (see RewardConfig)
 		Color/DarkColor  UI colors (body / border)
 ]]
 
@@ -63,6 +66,7 @@ PlantsConfig.Rarities = {
 		Weight = 20,
 		GrowTime = 600,
 		GrowthMultiplier = 1,
+		WaterGoal = 250,
 		Color = Color3.fromRGB(150, 214, 92),
 		DarkColor = Color3.fromRGB(58, 120, 46),
 	},
@@ -72,6 +76,7 @@ PlantsConfig.Rarities = {
 		Weight = 12,
 		GrowTime = 480,
 		GrowthMultiplier = 1,
+		WaterGoal = 220,
 		Color = Color3.fromRGB(86, 200, 168),
 		DarkColor = Color3.fromRGB(28, 112, 100),
 	},
@@ -81,6 +86,7 @@ PlantsConfig.Rarities = {
 		Weight = 7,
 		GrowTime = 360,
 		GrowthMultiplier = 1,
+		WaterGoal = 200,
 		Color = Color3.fromRGB(88, 160, 255),
 		DarkColor = Color3.fromRGB(34, 78, 168),
 	},
@@ -90,6 +96,7 @@ PlantsConfig.Rarities = {
 		Weight = 3,
 		GrowTime = 240,
 		GrowthMultiplier = 1,
+		WaterGoal = 180,
 		Color = Color3.fromRGB(190, 108, 255),
 		DarkColor = Color3.fromRGB(96, 40, 164),
 	},
@@ -99,6 +106,7 @@ PlantsConfig.Rarities = {
 		Weight = 1,
 		GrowTime = 120,
 		GrowthMultiplier = 1,
+		WaterGoal = 150,
 		Color = Color3.fromRGB(255, 196, 56),
 		DarkColor = Color3.fromRGB(176, 104, 18),
 	},
@@ -157,6 +165,12 @@ function PlantsConfig.GetGrowthMultiplier(plantId)
 	local plant = PlantsConfig.Plants[plantId]
 	local rarity = PlantsConfig.GetRarity(plantId)
 	return plant and (plant.GrowthMultiplier or (rarity and rarity.GrowthMultiplier)) or 1
+end
+
+function PlantsConfig.GetWaterGoal(plantId)
+	local plant = PlantsConfig.Plants[plantId]
+	local rarity = PlantsConfig.GetRarity(plantId)
+	return plant and (plant.WaterGoal or (rarity and rarity.WaterGoal)) or 250
 end
 
 --- Returns the model template for a plant, or nil if it's missing.

@@ -3,6 +3,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 
 local Knit = require(ReplicatedStorage.Packages.Knit)
+local Signal = require(ReplicatedStorage.Packages.Signal)
 local WaterConfig = require(ReplicatedStorage.SharedSource.Datas.WaterConfig)
 local PlantsConfig = require(ReplicatedStorage.SharedSource.Datas.PlantsConfig)
 local HoldSessions = require(ServerScriptService.ServerSource.Utilities.HoldSessions)
@@ -25,9 +26,14 @@ local Watering_Service = Knit.CreateService({
 		-- (cycleId, yourWater) only to the player it belongs to, only when it changed
 		ContributionChanged = Knit.CreateSignal(),
 	},
+
+	-- (player, amountPoured, dt, cycleState) every frame a player pours; rewards hook in here
+	Poured = Signal.new(),
+	-- (player) when a player stops pouring
+	PourStopped = Signal.new(),
 })
 
-local Water_Service, Plant_Service, PlantCycle_Service, Stats_Service
+local Water_Service, Plant_Service, PlantCycle_Service
 
 local sessions = HoldSessions.new()
 local prompt, bedPart
@@ -35,8 +41,6 @@ local pendingPoints = 0
 local sinceFlush = 0
 local contributions = {} -- [cycleId] = { [userId] = water poured }
 local cycleTotals = {} -- [cycleId] = total water poured by everyone
-local pendingCoins = {} -- [player] = coins earned but not yet paid out (fractions accumulate)
-local rewardedCycles = {} -- [cycleId] = true once Plants Grown was awarded
 
 -- replication bookkeeping (see broadcastTotals)
 local sinceBroadcast = 0
@@ -83,33 +87,6 @@ local function flushGrowth()
 	end
 end
 
---- Pays out the whole coins players have earned so far (batched, so the profile isn't touched every frame).
-local function payoutCoins()
-	for player, coins in pairs(pendingCoins) do
-		local whole = math.floor(coins)
-		if whole >= 1 then
-			pendingCoins[player] = coins - whole
-			Stats_Service:AddCoins(player, whole)
-		end
-	end
-end
-
---- +1 Plants Grown for every online player who contributed enough water to this plant.
-local function awardPlantsGrown(cycleId)
-	if rewardedCycles[cycleId] then
-		return
-	end
-	rewardedCycles[cycleId] = true
-	rewardedCycles[cycleId - 5] = nil
-
-	for userId, poured in pairs(contributions[cycleId] or {}) do
-		local player = Players:GetPlayerByUserId(userId)
-		if player and poured >= WaterConfig.MinWaterForPlantsGrown then
-			Stats_Service:AddStat(player, "PlantsGrown", 1)
-		end
-	end
-end
-
 local function startWatering(player)
 	if not canWater() or not isInRange(player) or Water_Service:GetWater(player) <= 0 then
 		return
@@ -140,12 +117,13 @@ local function startWatering(player)
 			cycleTotals[state.CycleId] = (cycleTotals[state.CycleId] or 0) + poured
 			dirtyTotal = true
 			dirtyPlayers[player] = true
-			pendingCoins[player] = (pendingCoins[player] or 0) + poured * WaterConfig.CoinsPerWater
+			Watering_Service.Poured:Fire(player, poured, dt, state)
 		end
 
 		return Water_Service:GetWater(player) > 0
 	end, function()
 		player:SetAttribute(ATTR.Watering, false)
+		Watering_Service.PourStopped:Fire(player)
 	end)
 end
 
@@ -237,9 +215,7 @@ function Watering_Service:KnitStart()
 	Water_Service = Knit.GetService("Water_Service")
 	Plant_Service = Knit.GetService("Plant_Service")
 	PlantCycle_Service = Knit.GetService("PlantCycle_Service")
-	Stats_Service = Knit.GetService("Stats_Service")
 
-	PlantCycle_Service.PlantGrown:Connect(awardPlantsGrown)
 
 	-- apply accumulated growth in batches instead of once per player per frame
 	game:GetService("RunService").Heartbeat:Connect(function(dt)
@@ -247,7 +223,6 @@ function Watering_Service:KnitStart()
 		if sinceFlush >= WaterConfig.GrowthFlushInterval then
 			sinceFlush = 0
 			flushGrowth()
-			payoutCoins()
 		end
 
 		sinceBroadcast += dt
@@ -282,8 +257,6 @@ function Watering_Service:KnitStart()
 		sessions:Stop(player)
 		dirtyPlayers[player] = nil
 		lastSentMine[player] = nil
-		payoutCoins() -- pay what the leaving player already earned
-		pendingCoins[player] = nil
 	end)
 
 	task.spawn(setupPrompt)

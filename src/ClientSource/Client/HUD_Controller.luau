@@ -71,6 +71,25 @@ local function StatRow(definition, value, layoutOrder, secondary)
 		return value()
 	end, 0.25, 1)
 
+	-- the whole row bumps whenever its stat goes up
+	local bump = source(1)
+	local bumpScale = Vide.spring(function()
+		return bump()
+	end, 0.22, 0.45)
+	local lastValue = definition.Default
+	Vide.effect(function()
+		local current = value()
+		if current > lastValue then
+			task.defer(function()
+				bump(1.16)
+				task.delay(0.1, function()
+					bump(1)
+				end)
+			end)
+		end
+		lastValue = current
+	end)
+
 	local rowHeight = (definition.HudHeight or 1) / TOTAL_HEIGHT
 	local hasSecondary = secondary ~= nil
 
@@ -86,6 +105,12 @@ local function StatRow(definition, value, layoutOrder, secondary)
 			Position = UDim2.fromScale(0, 0.5),
 			Size = UDim2.fromScale(1, 0.94),
 			BackgroundTransparency = 1,
+
+			create("UIScale")({
+				Scale = function()
+					return bumpScale()
+				end,
+			}),
 
 			create("ImageLabel")({
 				Name = "Icon",

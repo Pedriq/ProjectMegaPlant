@@ -5,6 +5,7 @@ local Knit = require(ReplicatedStorage.Packages.Knit)
 local Signal = require(ReplicatedStorage.Packages.Signal)
 local PlantsConfig = require(ReplicatedStorage.SharedSource.Datas.PlantsConfig)
 local PlantSelector = require(ReplicatedStorage.SharedSource.Utilities.PlantSelector)
+local RewardConfig = require(ReplicatedStorage.SharedSource.Datas.RewardConfig)
 
 --[[
 	The growing cycle:
@@ -90,6 +91,27 @@ end
 
 function PlantCycle_Service:GetState()
 	return state
+end
+
+--- Shortens the current Growing phase according to how close the server is to the plant's water
+--- goal (boost 0-1). The timer only ever gets shorter, and is re-sent only on noticeable changes.
+function PlantCycle_Service:SetBoost(boost)
+	if state.Phase ~= "Growing" then
+		return
+	end
+	boost = math.clamp(boost, 0, 1)
+	local baseDuration = PlantsConfig.GetGrowTime(state.PlantId)
+	local newEnd = state.PhaseStart + baseDuration * (1 - RewardConfig.Boost.MaxFraction * boost)
+	newEnd = math.max(newEnd, workspace:GetServerTimeNow() + 1)
+
+	if state.PhaseEnd - newEnd < RewardConfig.Boost.MinSecondsChange then
+		return
+	end
+
+	local updated = table.clone(state)
+	updated.PhaseEnd = newEnd
+	state = updated
+	PlantCycle_Service.Client.StateChanged:FireAll(state)
 end
 
 --- Testing helper: jumps to the end of the current phase.

@@ -41,7 +41,7 @@ local function StatPill(props)
 				Name = "Title",
 				AnchorPoint = Vector2.new(0, 0.5),
 				Position = UDim2.fromScale(0.05, 0.5),
-				Size = UDim2.fromScale(0.58, 0.62),
+				Size = UDim2.fromScale(0.5, 0.62),
 				XAlignment = Enum.TextXAlignment.Left,
 				Text = props.Title,
 			}),
@@ -49,7 +49,7 @@ local function StatPill(props)
 				Name = "Value",
 				AnchorPoint = Vector2.new(1, 0.5),
 				Position = UDim2.fromScale(0.96, 0.5),
-				Size = UDim2.fromScale(0.34, 0.8),
+				Size = UDim2.fromScale(0.45, 0.8),
 				XAlignment = Enum.TextXAlignment.Right,
 				Text = props.Value,
 			}),
@@ -260,7 +260,11 @@ local function PlantHUD(cycle, now, shimmer, popTarget, totals)
 						BorderColor = Color3.fromRGB(34, 78, 168),
 						Title = "Total Water",
 						Value = function()
-							return formatCount(totalWater())
+							local goal = cycle().PlantId and PlantsConfig.GetWaterGoal(cycle().PlantId)
+							if not goal then
+								return formatCount(totalWater())
+							end
+							return ("%s / %s"):format(formatCount(totalWater()), formatCount(goal))
 						end,
 					}),
 					StatPill({
@@ -297,6 +301,14 @@ function PlantHUD_Controller:KnitStart()
 	end)
 
 	-- bounce the panel whenever a new plant shows up
+	-- the water boost just shortened the timer: small bump so players notice their effect
+	PlantCycle_Controller.TimerChanged:Connect(function()
+		popTarget(1.07)
+		task.delay(0.12, function()
+			popTarget(1)
+		end)
+	end)
+
 	PlantCycle_Controller.StateChanged:Connect(function(state)
 		if state.Phase == "Growing" then
 			popTarget(1.12)

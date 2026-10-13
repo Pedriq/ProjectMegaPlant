@@ -104,6 +104,18 @@ function TrainingConfig.GetGainPerSecond(zoneId, activityId)
 	return gain or 0
 end
 
+--- Zone ids sorted by their Order (Zone1, Zone2, ...).
+function TrainingConfig.GetZoneOrder()
+	local ids = {}
+	for zoneId in pairs(TrainingConfig.Zones) do
+		table.insert(ids, zoneId)
+	end
+	table.sort(ids, function(a, b)
+		return TrainingConfig.Zones[a].Order < TrainingConfig.Zones[b].Order
+	end)
+	return ids
+end
+
 --- The unlock requirement of a zone ({ Stat, Amount }), or nil if the zone is always open.
 function TrainingConfig.GetUnlock(zoneId)
 	local zone = TrainingConfig.Zones[zoneId]

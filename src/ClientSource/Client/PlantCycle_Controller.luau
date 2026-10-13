@@ -22,6 +22,8 @@ PlantCycle_Controller.State = Vide.source({
 	PhaseEnd = 0,
 })
 PlantCycle_Controller.StateChanged = Signal.new()
+-- (state, oldPhaseEnd) the current phase's end time changed (water boost)
+PlantCycle_Controller.TimerChanged = Signal.new()
 
 local function apply(newState)
 	if not newState then
@@ -33,6 +35,11 @@ local function apply(newState)
 		return
 	end
 	if newState.PhaseStart == current.PhaseStart and newState.Phase == current.Phase then
+		-- same phase: only the end time can change (the water boost shortens the grow timer)
+		if newState.PhaseEnd < current.PhaseEnd then -- the boost only ever shortens the timer
+			PlantCycle_Controller.State(newState)
+			PlantCycle_Controller.TimerChanged:Fire(newState, current.PhaseEnd)
+		end
 		return
 	end
 	PlantCycle_Controller.State(newState)
