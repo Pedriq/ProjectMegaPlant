@@ -144,14 +144,23 @@ local function onPlantGrown(cycleId, plantId)
 	rewardedCycles[cycleId - 5] = nil
 
 	local rarity = PlantsConfig.GetPlant(plantId) and PlantsConfig.GetPlant(plantId).Rarity
-	local baseCoins = RewardConfig.Harvest.BaseByRarity[rarity] or 0
+	local harvest = RewardConfig.Harvest
+	local baseCoins = harvest.BaseByRarity[rarity] or 0
+	local pool = harvest.PoolByRarity[rarity] or 0
 
 	Reward_Service.Client.PlantFullyGrown:FireAll(plantId)
 
-	for userId, poured in pairs(Watering_Service:GetContributions(cycleId)) do
+	local contributions = Watering_Service:GetContributions(cycleId)
+	local totalPoured = 0
+	for _, poured in pairs(contributions) do
+		totalPoured += poured
+	end
+
+	for userId, poured in pairs(contributions) do
 		local player = Players:GetPlayerByUserId(userId)
 		if player and poured >= WaterConfig.MinWaterForPlantsGrown then
-			local coins = math.floor(baseCoins + poured * RewardConfig.Harvest.CoinsPerWater)
+			local share = totalPoured > 0 and poured / totalPoured or 0
+			local coins = math.floor(baseCoins + poured * harvest.CoinsPerWater + pool * share)
 			Stats_Service:AddCoins(player, coins)
 			local plantsGrown = Stats_Service:AddStat(player, "PlantsGrown", 1)
 			Reward_Service.Client.PlantHarvested:Fire(player, {
@@ -159,6 +168,7 @@ local function onPlantGrown(cycleId, plantId)
 				Coins = coins,
 				PlantsGrown = plantsGrown,
 				Water = math.floor(poured + 0.5),
+				Share = share,
 			})
 		end
 	end

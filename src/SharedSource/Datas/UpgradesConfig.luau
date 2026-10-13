@@ -7,7 +7,7 @@
 		DisplayName / Description / Icon
 		Effect         what it speeds up: "FillSpeed" (water collection) or "PourSpeed" (watering)
 		EffectName     short label used in the shop
-		MaxLevel
+		(no max level: upgrades can be bought forever)
 		BasePrice      price of level 1
 		PriceGrowth    every further level costs this many times more (price = BasePrice * PriceGrowth ^ level)
 		BonusPerLevel  +this to the speed multiplier per level (0.15 = +15% per level)
@@ -30,7 +30,6 @@ UpgradesConfig.Upgrades = {
 		Icon = PLACEHOLDER_ICON, -- TODO: icon
 		Effect = "FillSpeed",
 		EffectName = "Fill speed",
-		MaxLevel = 20,
 		BasePrice = 50,
 		PriceGrowth = 1.35,
 		BonusPerLevel = 0.15,
@@ -41,7 +40,6 @@ UpgradesConfig.Upgrades = {
 		Icon = PLACEHOLDER_ICON, -- TODO: icon
 		Effect = "PourSpeed",
 		EffectName = "Pour speed",
-		MaxLevel = 20,
 		BasePrice = 75,
 		PriceGrowth = 1.4,
 		BonusPerLevel = 0.15,
@@ -85,7 +83,8 @@ end
 --- Price of the NEXT level for a player currently at `level`.
 function UpgradesConfig.GetPrice(upgradeId, level)
 	local config = UpgradesConfig.Upgrades[upgradeId]
-	return math.floor(config.BasePrice * config.PriceGrowth ^ level + 0.5)
+	-- exponential growth, clamped only so absurdly high levels can never overflow to infinity
+	return math.floor(math.min(config.BasePrice * config.PriceGrowth ^ level, 2 ^ 53) + 0.5)
 end
 
 --- Speed multiplier granted by an upgrade at `level` (1 = no bonus).

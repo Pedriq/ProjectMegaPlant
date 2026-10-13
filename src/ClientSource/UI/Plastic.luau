@@ -34,7 +34,7 @@ local function append(props, children)
 	return props
 end
 
---- Glossy two-layer panel: dark rim (thicker at the bottom for a 3D lip), colored body, white highlight.
+--- Glossy two-layer panel: thin dark rim (a bit thicker at the bottom for a 3D lip), colored body, white highlight.
 --- props: Name, AnchorPoint, Position, Size, BodyColor, BorderColor, Corner (0-0.5, default 0.28),
 ---        Gloss (default true), ZIndex, LayoutOrder, Children (list)
 --- Children are parented to the body; RootChildren (list) to the outer rim frame (e.g. a UIScale).
@@ -44,8 +44,8 @@ function Plastic.Panel(props)
 	local body = {
 		Name = "Body",
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.45),
-		Size = UDim2.fromScale(0.97, 0.84),
+		Position = UDim2.fromScale(0.5, 0.47),
+		Size = UDim2.fromScale(0.987, 0.92),
 		BackgroundColor3 = props.BodyColor or Plastic.Colors.PanelBody,
 		BorderSizePixel = 0,
 
@@ -165,8 +165,8 @@ function Plastic.Bar(props)
 	local inner = {
 		Name = "Track",
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.46),
-		Size = UDim2.fromScale(0.97, 0.78),
+		Position = UDim2.fromScale(0.5, 0.47),
+		Size = UDim2.fromScale(0.988, 0.88),
 		BackgroundColor3 = Plastic.Colors.TrackBody,
 		BorderSizePixel = 0,
 		ClipsDescendants = true,

@@ -93,10 +93,8 @@ function Upgrade_Service:Purchase(player, upgradeId)
 		return { Success = false, Reason = "Too far from the shop" }
 	end
 
+	-- no level cap: every level can always be bought and keeps adding its bonus
 	local level = data[upgradeId] or 0
-	if level >= config.MaxLevel then
-		return { Success = false, Reason = "Max level", Level = level }
-	end
 
 	local price = UpgradesConfig.GetPrice(upgradeId, level)
 	if not Stats_Service:CanAfford(player, price) then

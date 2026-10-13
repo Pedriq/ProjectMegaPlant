@@ -39,13 +39,22 @@ RewardConfig.Stages = {
 }
 
 RewardConfig.Harvest = {
-	CoinsPerWater = 2, -- extra coins per unit of water the player poured into this plant
-	BaseByRarity = {
-		Common = 50,
-		Uncommon = 80,
-		Rare = 130,
-		Epic = 220,
-		Legendary = 400,
+	-- payout = participation (BaseByRarity) + own water * CoinsPerWater + the player's SHARE of the prize pool.
+	-- share = own water / all water poured into the plant, so the bigger the impact, the bigger the reward.
+	CoinsPerWater = 2,
+	BaseByRarity = { -- everyone who helped gets this
+		Common = 20,
+		Uncommon = 30,
+		Rare = 50,
+		Epic = 80,
+		Legendary = 150,
+	},
+	PoolByRarity = { -- split between contributors in proportion to their impact
+		Common = 150,
+		Uncommon = 250,
+		Rare = 400,
+		Epic = 700,
+		Legendary = 1200,
 	},
 }
 

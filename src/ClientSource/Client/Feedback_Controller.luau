@@ -151,7 +151,10 @@ end
 local function onPlantHarvested(result)
 	Banner_Controller:Show({
 		Title = ("+%s coins!"):format(formatNumber(result.Coins)),
-		Subtitle = ("Harvest reward  -  Plants Grown: %d"):format(result.PlantsGrown or 0),
+		Subtitle = ("Your impact: %d%%  -  Plants Grown: %d"):format(
+			math.floor((result.Share or 0) * 100 + 0.5),
+			result.PlantsGrown or 0
+		),
 		Color = Color3.fromRGB(255, 205, 80),
 		BorderColor = Color3.fromRGB(170, 100, 20),
 		Duration = 3,

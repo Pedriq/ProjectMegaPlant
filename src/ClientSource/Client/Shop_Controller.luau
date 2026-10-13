@@ -52,14 +52,11 @@ end
 local function UpgradeCard(upgradeId, layoutOrder, level, coins, onBuy)
 	local config = UpgradesConfig.Upgrades[upgradeId]
 
-	local function maxed()
-		return level() >= config.MaxLevel
-	end
 	local function price()
 		return UpgradesConfig.GetPrice(upgradeId, level())
 	end
 	local function affordable()
-		return not maxed() and coins() >= price()
+		return coins() >= price()
 	end
 
 	return Plastic.Panel({
@@ -119,7 +116,7 @@ local function UpgradeCard(upgradeId, layoutOrder, level, coins, onBuy)
 				XAlignment = Enum.TextXAlignment.Left,
 				Color = Plastic.Colors.Gold,
 				Text = function()
-					return maxed() and ("Level %d  (MAX)"):format(level()) or ("Level %d / %d"):format(level(), config.MaxLevel)
+					return ("Level %d"):format(level())
 				end,
 			}),
 			Plastic.Label({
@@ -130,9 +127,6 @@ local function UpgradeCard(upgradeId, layoutOrder, level, coins, onBuy)
 				Color = Color3.fromRGB(190, 255, 200),
 				Text = function()
 					local current = UpgradesConfig.GetMultiplier(upgradeId, level())
-					if maxed() then
-						return ("%s x%.2f"):format(config.EffectName, current)
-					end
 					return ("%s x%.2f -> x%.2f"):format(
 						config.EffectName,
 						current,
@@ -149,10 +143,10 @@ local function UpgradeCard(upgradeId, layoutOrder, level, coins, onBuy)
 				Size = UDim2.fromScale(0.25, 0.62),
 				Corner = 0.3,
 				BodyColor = function()
-					return maxed() and BUY_MAX or (affordable() and BUY_READY or BUY_DISABLED)
+					return affordable() and BUY_READY or BUY_DISABLED
 				end,
 				BorderColor = function()
-					return maxed() and BUY_MAX_BORDER or (affordable() and BUY_READY_BORDER or BUY_DISABLED_BORDER)
+					return affordable() and BUY_READY_BORDER or BUY_DISABLED_BORDER
 				end,
 				Children = {
 					Plastic.Label({
@@ -161,7 +155,7 @@ local function UpgradeCard(upgradeId, layoutOrder, level, coins, onBuy)
 						Position = UDim2.fromScale(0.5, 0.1),
 						Size = UDim2.fromScale(0.7, 0.3),
 						Text = function()
-							return maxed() and "MAXED" or "UPGRADE"
+							return "UPGRADE"
 						end,
 					}),
 					Plastic.Label({
@@ -170,7 +164,7 @@ local function UpgradeCard(upgradeId, layoutOrder, level, coins, onBuy)
 						Position = UDim2.fromScale(0.5, 0.45),
 						Size = UDim2.fromScale(0.8, 0.4),
 						Text = function()
-							return maxed() and "-" or formatNumber(price())
+							return formatNumber(price())
 						end,
 					}),
 					-- hit area; the server decides if the purchase works
