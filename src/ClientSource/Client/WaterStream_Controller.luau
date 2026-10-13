@@ -19,6 +19,11 @@ local SEGMENTS = 12
 local WIDTH_START = 0.38
 local WIDTH_END = 0.26
 local FADE_SPEED = 10
+local FADE_OUT_SPEED = 22 -- the stream shuts off almost instantly when watering ends
+local VIEW_DISTANCE = 160 -- streams further from the camera are not drawn
+local CORE_COLOR = ColorSequence.new(Color3.fromRGB(245, 252, 255), Color3.fromRGB(170, 228, 255))
+local GLOW_COLOR = Color3.fromRGB(150, 220, 255)
+local DROPLET_POINTS = { 2, 5, 8, 11 } -- stream points that shed sparkling droplets
 local FOLLOW_SPEED = 18
 local WATER_COLOR = ColorSequence.new(Color3.fromRGB(150, 220, 255), Color3.fromRGB(70, 150, 255))
 
@@ -61,6 +66,45 @@ local function createStream()
 		beams[i] = beam
 	end
 
+	-- bright thin core on top of the ribbon: the "shimmer"
+	local cores = {}
+	for i = 1, SEGMENTS do
+		local core = Instance.new("Beam")
+		core.Name = "Core" .. i
+		core.Attachment0 = attachments[i - 1]
+		core.Attachment1 = attachments[i]
+		core.Segments = 1
+		core.FaceCamera = true
+		core.LightEmission = 1
+		core.Color = CORE_COLOR
+		core.Transparency = NumberSequence.new(0.2)
+		core.Parent = holder
+		cores[i] = core
+	end
+
+	-- sparkling droplets shed along the stream
+	local droplets = {}
+	for _, index in ipairs(DROPLET_POINTS) do
+		local sparkle = Instance.new("ParticleEmitter")
+		sparkle.Name = "Droplets"
+		sparkle.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+		sparkle.Color = ColorSequence.new(Color3.new(1, 1, 1), GLOW_COLOR)
+		sparkle.LightEmission = 0.9
+		sparkle.LightInfluence = 0
+		sparkle.LockedToPart = false
+		sparkle.Lifetime = NumberRange.new(0.3, 0.6)
+		sparkle.Speed = NumberRange.new(0.6, 2.2)
+		sparkle.SpreadAngle = Vector2.new(180, 180)
+		sparkle.Acceleration = Vector3.new(0, -16, 0)
+		sparkle.Size = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.28),
+			NumberSequenceKeypoint.new(1, 0),
+		})
+		sparkle.Rate = 0
+		sparkle.Parent = attachments[index]
+		table.insert(droplets, sparkle)
+	end
+
 	-- splash where the water lands
 	local splashPart = Instance.new("Part")
 	splashPart.Name = "Splash"
@@ -85,12 +129,44 @@ local function createStream()
 		NumberSequenceKeypoint.new(1, 0),
 	})
 	splash.Rate = 0
+	splash.LightInfluence = 0
 	splash.Parent = splashPart
+
+	-- soft mist puffing up at the impact
+	local mist = Instance.new("ParticleEmitter")
+	mist.Texture = "rbxasset://textures/particles/smoke_main.dds"
+	mist.Color = ColorSequence.new(Color3.new(1, 1, 1), GLOW_COLOR)
+	mist.LightEmission = 0.6
+	mist.LightInfluence = 0
+	mist.Lifetime = NumberRange.new(0.5, 0.9)
+	mist.Speed = NumberRange.new(1.5, 3.5)
+	mist.SpreadAngle = Vector2.new(80, 80)
+	mist.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.8),
+		NumberSequenceKeypoint.new(1, 2.2),
+	})
+	mist.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.75),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	mist.Rate = 0
+	mist.Parent = splashPart
+
+	-- faint glow around the impact
+	local glow = Instance.new("PointLight")
+	glow.Color = GLOW_COLOR
+	glow.Range = 9
+	glow.Brightness = 0
+	glow.Parent = splashPart
 
 	return {
 		Holder = holder,
 		Attachments = attachments,
 		Beams = beams,
+		Cores = cores,
+		Droplets = droplets,
+		Mist = mist,
+		Glow = glow,
 		SplashPart = splashPart,
 		Splash = splash,
 		Visibility = 0,
@@ -109,7 +185,11 @@ end
 
 local function update(player, dt, plantTarget)
 	local spout = WateringCanVisual_Controller:GetSpoutPosition(player)
+	local camera = workspace.CurrentCamera
 	local wanted = WaterState.IsWatering(player) and spout ~= nil and plantTarget ~= nil
+	if wanted and camera and (camera.CFrame.Position - spout).Magnitude > VIEW_DISTANCE then
+		wanted = false
+	end
 
 	local stream = streams[player]
 	if not stream then
@@ -120,7 +200,16 @@ local function update(player, dt, plantTarget)
 		streams[player] = stream
 	end
 
-	stream.Visibility += ((wanted and 1 or 0) - stream.Visibility) * (1 - math.exp(-FADE_SPEED * dt))
+	stream.Visibility += ((wanted and 1 or 0) - stream.Visibility) * (1 - math.exp(-(wanted and FADE_SPEED or FADE_OUT_SPEED) * dt))
+	if not wanted then
+		-- no new particles the moment watering ends
+		stream.Splash.Rate = 0
+		stream.Mist.Rate = 0
+		stream.Glow.Brightness = stream.Visibility * 1.2
+		for _, sparkle in ipairs(stream.Droplets) do
+			sparkle.Rate = 0
+		end
+	end
 	if not wanted and stream.Visibility < 0.02 then
 		destroyStream(player)
 		return
@@ -150,10 +239,21 @@ local function update(player, dt, plantTarget)
 		local width = (WIDTH_START + (WIDTH_END - WIDTH_START) * t) * stream.Visibility
 		beam.Width0 = width
 		beam.Width1 = width
+
+		-- the bright core is thinner and shimmers
+		local core = stream.Cores[i]
+		local shimmer = 1 + 0.22 * math.sin(time * 18 + i * 1.7)
+		core.Width0 = width * 0.42 * shimmer
+		core.Width1 = width * 0.42 * shimmer
 	end
 
 	stream.SplashPart.Position = finish
-	stream.Splash.Rate = 38 * stream.Visibility
+	stream.Splash.Rate = (wanted and 34 or 0) * stream.Visibility
+	stream.Mist.Rate = (wanted and 9 or 0) * stream.Visibility
+	stream.Glow.Brightness = (0.9 + 0.25 * math.sin(time * 9)) * stream.Visibility
+	for _, sparkle in ipairs(stream.Droplets) do
+		sparkle.Rate = (wanted and 7 or 0) * stream.Visibility
+	end
 end
 
 function WaterStream_Controller:KnitStart()
