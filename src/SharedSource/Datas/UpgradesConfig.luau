@@ -28,25 +28,31 @@ UpgradesConfig.Order = { "WaterCollectionSpeed", "WateringSpeed", "Luck" }
 
 UpgradesConfig.Upgrades = {
 	WaterCollectionSpeed = {
-		DisplayName = "Water Collection Speed",
-		Description = "Your watering can fills up faster",
-		Icon = PLACEHOLDER_ICON, -- TODO: icon
+		DisplayName = "Water Collection",
+		Description = "Your can fills up faster",
+		Accent = Color3.fromRGB(96, 168, 232), -- sky blue
+		Glyph = "💧", -- shown in the icon plate until IconImage is set
+		IconImage = nil, -- TODO: real icon (rbxassetid)
 		Effect = "FillSpeed",
 		EffectName = "Fill speed",
 		Curve = BalanceConfig.Upgrades.WaterCollectionSpeed,
 	},
 	WateringSpeed = {
 		DisplayName = "Watering Speed",
-		Description = "You pour water onto plants faster",
-		Icon = PLACEHOLDER_ICON, -- TODO: icon
+		Description = "You pour onto plants faster",
+		Accent = Color3.fromRGB(84, 186, 164), -- teal
+		Glyph = "🚿",
+		IconImage = nil, -- TODO: real icon (rbxassetid)
 		Effect = "PourSpeed",
 		EffectName = "Pour speed",
 		Curve = BalanceConfig.Upgrades.WateringSpeed,
 	},
 	Luck = {
 		DisplayName = "Luck",
-		Description = "More lucky pours while watering",
-		Icon = PLACEHOLDER_ICON, -- TODO: icon
+		Description = "More lucky pours (crits)",
+		Accent = Color3.fromRGB(170, 132, 226), -- violet
+		Glyph = "🍀",
+		IconImage = nil, -- TODO: real icon (rbxassetid)
 		Effect = "CritChance",
 		EffectName = "Crit chance",
 		-- shown as a percentage: base chance * multiplier, never above Max
@@ -120,15 +126,23 @@ function UpgradesConfig.GetValue(upgradeId, level)
 	return multiplier
 end
 
---- "Fill speed x1.24 -> x1.45" or "Crit chance 10.0% -> 11.8%": what the shop shows under an upgrade.
-function UpgradesConfig.GetEffectText(upgradeId, level)
+--- The pieces of an upgrade's effect line: { Current = "x1.24", Next = "x1.45" } (speed) or
+--- { Current = "10.0%", Next = "11.7%" } (Luck).
+function UpgradesConfig.GetEffectParts(upgradeId, level)
 	local config = UpgradesConfig.Upgrades[upgradeId]
 	local current = UpgradesConfig.GetValue(upgradeId, level)
 	local nextValue = UpgradesConfig.GetValue(upgradeId, level + 1)
 	if config.Percent then
-		return ("%s %.1f%% -> %.1f%%"):format(config.EffectName, current * 100, nextValue * 100)
+		return { Current = ("%.1f%%"):format(current * 100), Next = ("%.1f%%"):format(nextValue * 100) }
 	end
-	return ("%s x%.2f -> x%.2f"):format(config.EffectName, current, nextValue)
+	return { Current = ("x%.2f"):format(current), Next = ("x%.2f"):format(nextValue) }
+end
+
+--- "Fill speed x1.24 -> x1.45" or "Crit chance 10.0% -> 11.7%" as one plain string.
+function UpgradesConfig.GetEffectText(upgradeId, level)
+	local config = UpgradesConfig.Upgrades[upgradeId]
+	local parts = UpgradesConfig.GetEffectParts(upgradeId, level)
+	return ("%s %s -> %s"):format(config.EffectName, parts.Current, parts.Next)
 end
 
 return UpgradesConfig

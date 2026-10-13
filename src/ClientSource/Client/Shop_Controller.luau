@@ -35,7 +35,7 @@ local shopPart -- the part the open shop belongs to (for the "walked away" check
 local shopPrompt
 local distanceConnection
 
-local BUY_READY = Color3.fromRGB(96, 190, 112)
+local BUY_READY = Color3.fromRGB(88, 184, 110)
 local BUY_READY_BORDER = Color3.fromRGB(36, 120, 48)
 local BUY_DISABLED = Color3.fromRGB(160, 172, 164)
 local BUY_DISABLED_BORDER = Color3.fromRGB(78, 82, 96)
@@ -49,8 +49,14 @@ end
 
 ---- UI
 
+--- One upgrade card. Layout (all Scale):
+---   [icon]  Name                 [LV n]   |  [ 💰 price ]
+---           caption (what it does)        |  [  UPGRADE  ]
+---           x1.24  ➜  x1.45  (big)
+--- Every upgrade has its own accent color and glyph (UpgradesConfig), so the cards are told apart at a glance.
 local function UpgradeCard(upgradeId, layoutOrder, level, coins, onBuy)
 	local config = UpgradesConfig.Upgrades[upgradeId]
+	local accent = config.Accent or Plastic.Colors.PanelBody
 
 	local function price()
 		return UpgradesConfig.GetPrice(upgradeId, level())
@@ -58,111 +64,150 @@ local function UpgradeCard(upgradeId, layoutOrder, level, coins, onBuy)
 	local function affordable()
 		return coins() >= price()
 	end
+	local function parts()
+		return UpgradesConfig.GetEffectParts(upgradeId, level())
+	end
+
+	local icon
+	if config.IconImage then
+		icon = create("ImageLabel")({
+			Name = "Icon",
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.5, 0.5),
+			Size = UDim2.fromScale(0.78, 0.78),
+			BackgroundTransparency = 1,
+			Image = config.IconImage,
+			ScaleType = Enum.ScaleType.Fit,
+		})
+	else
+		icon = Plastic.Label({
+			Name = "Glyph",
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.5, 0.5),
+			Size = UDim2.fromScale(0.72, 0.72),
+			Text = config.Glyph or "?",
+		})
+	end
 
 	return Plastic.Panel({
 		Name = upgradeId,
 		LayoutOrder = layoutOrder,
-		-- the cards share the height of the list (3% gaps), whatever the number of upgrades
-		Size = UDim2.fromScale(1, (1 - 0.03 * (#UpgradesConfig.Order - 1)) / #UpgradesConfig.Order),
-		BodyColor = Color3.fromRGB(104, 168, 232),
-		BorderColor = Color3.fromRGB(30, 78, 170),
+		-- the cards share the height of the list (4% gaps), whatever the number of upgrades
+		Size = UDim2.fromScale(1, (1 - 0.04 * (#UpgradesConfig.Order - 1)) / #UpgradesConfig.Order),
+		BodyColor = accent,
 		Corner = 0.2,
 		Children = {
-			-- icon
+			-- icon plate in a deeper shade of the accent
 			Plastic.Panel({
 				Name = "IconPlate",
 				AnchorPoint = Vector2.new(0, 0.5),
-				Position = UDim2.fromScale(0.03, 0.5),
-				Size = UDim2.fromScale(0.2, 0.7),
-				BodyColor = Color3.fromRGB(255, 255, 255),
-				BorderColor = Color3.fromRGB(30, 78, 170),
-				Corner = 0.25,
-				Gloss = false,
+				Position = UDim2.fromScale(0.025, 0.5),
+				Size = UDim2.fromScale(0.15, 0.68),
+				BodyColor = accent:Lerp(Color3.new(0, 0, 0), 0.18),
+				Style = "Accent",
+				Corner = 0.3,
+				Studs = false,
 				Children = {
 					create("UIAspectRatioConstraint")({ AspectRatio = 1 }),
-					create("ImageLabel")({
-						Name = "Icon",
-						AnchorPoint = Vector2.new(0.5, 0.5),
-						Position = UDim2.fromScale(0.5, 0.5),
-						Size = UDim2.fromScale(0.8, 0.8),
-						BackgroundTransparency = 1,
-						Image = config.Icon,
-						ScaleType = Enum.ScaleType.Fit,
-					}),
+					icon,
 				},
 			}),
 
-			-- name
+			-- 1) name (the strongest text of the card)
 			Plastic.Label({
 				Name = "Name",
-				Position = UDim2.fromScale(0.27, 0.08),
-				Size = UDim2.fromScale(0.43, 0.24),
+				Position = UDim2.fromScale(0.2, 0.08),
+				Size = UDim2.fromScale(0.34, 0.3),
 				XAlignment = Enum.TextXAlignment.Left,
 				Text = config.DisplayName,
 			}),
-			-- description
-			Plastic.Label({
-				Name = "Description",
-				Position = UDim2.fromScale(0.27, 0.34),
-				Size = UDim2.fromScale(0.43, 0.17),
-				XAlignment = Enum.TextXAlignment.Left,
-				Color = Color3.fromRGB(220, 240, 255),
-				Text = config.Description,
+			-- 2) current level, a small chip next to the name
+			Plastic.Panel({
+				Name = "LevelChip",
+				Position = UDim2.fromScale(0.555, 0.11),
+				Size = UDim2.fromScale(0.095, 0.24),
+				BodyColor = accent:Lerp(Color3.new(0, 0, 0), 0.25),
+				Style = "Accent",
+				Corner = 0.5,
+				Studs = false,
+				Children = {
+					Plastic.Label({
+						Name = "Level",
+						AnchorPoint = Vector2.new(0.5, 0.5),
+						Position = UDim2.fromScale(0.5, 0.5),
+						Size = UDim2.fromScale(0.86, 0.66),
+						Text = function()
+							return ("LV %d"):format(level())
+						end,
+					}),
+				},
 			}),
-			-- level + effect
+			-- 3) what it improves, small and quiet
 			Plastic.Label({
-				Name = "Level",
-				Position = UDim2.fromScale(0.27, 0.56),
-				Size = UDim2.fromScale(0.43, 0.2),
+				Name = "Caption",
+				Position = UDim2.fromScale(0.2, 0.4),
+				Size = UDim2.fromScale(0.45, 0.17),
 				XAlignment = Enum.TextXAlignment.Left,
-				Color = Plastic.Colors.Gold,
+				Color = Color3.fromRGB(236, 244, 240),
 				Text = function()
-					return ("Level %d"):format(level())
+					return config.Description
 				end,
 			}),
+			-- 4) THE benefit: current value big, the next level in green
 			Plastic.Label({
-				Name = "Effect",
-				Position = UDim2.fromScale(0.27, 0.77),
-				Size = UDim2.fromScale(0.43, 0.16),
+				Name = "Benefit",
+				Position = UDim2.fromScale(0.2, 0.6),
+				Size = UDim2.fromScale(0.45, 0.32),
 				XAlignment = Enum.TextXAlignment.Left,
-				Color = Color3.fromRGB(190, 255, 200),
+				RichText = true,
 				Text = function()
-					return UpgradesConfig.GetEffectText(upgradeId, level())
+					local effect = parts()
+					return ('%s  <font color="#c6ffd0">➜  %s</font>'):format(effect.Current, effect.Next)
 				end,
 			}),
 
-			-- buy button
+			-- thin divider: information on the left, buying on the right
+			create("Frame")({
+				Name = "Divider",
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				Position = UDim2.fromScale(0.672, 0.5),
+				Size = UDim2.fromScale(0.004, 0.66),
+				BackgroundColor3 = Color3.new(1, 1, 1),
+				BackgroundTransparency = 0.7,
+				BorderSizePixel = 0,
+			}),
+
+			-- buy block: price on top, the action below
 			Plastic.Panel({
 				Name = "BuyButton",
-					Style = "Accent",
 				AnchorPoint = Vector2.new(1, 0.5),
-				Position = UDim2.fromScale(0.97, 0.5),
-				Size = UDim2.fromScale(0.25, 0.62),
+				Position = UDim2.fromScale(0.975, 0.5),
+				Size = UDim2.fromScale(0.28, 0.72),
 				Corner = 0.3,
+				Style = "Accent",
 				BodyColor = function()
 					return affordable() and BUY_READY or BUY_DISABLED
 				end,
-				BorderColor = function()
-					return affordable() and BUY_READY_BORDER or BUY_DISABLED_BORDER
-				end,
 				Children = {
-					Plastic.Label({
-						Name = "Caption",
-						AnchorPoint = Vector2.new(0.5, 0),
-						Position = UDim2.fromScale(0.5, 0.1),
-						Size = UDim2.fromScale(0.7, 0.3),
-						Text = function()
-							return "UPGRADE"
-						end,
-					}),
 					Plastic.Label({
 						Name = "Price",
 						AnchorPoint = Vector2.new(0.5, 0),
-						Position = UDim2.fromScale(0.5, 0.45),
-						Size = UDim2.fromScale(0.8, 0.4),
-						Text = function()
-							return formatNumber(price())
+						Position = UDim2.fromScale(0.5, 0.08),
+						Size = UDim2.fromScale(0.86, 0.5),
+						Color = function()
+							return affordable() and Color3.new(1, 1, 1) or Color3.fromRGB(255, 226, 226)
 						end,
+						Text = function()
+							return "💰 " .. formatNumber(price())
+						end,
+					}),
+					Plastic.Label({
+						Name = "Action",
+						AnchorPoint = Vector2.new(0.5, 0),
+						Position = UDim2.fromScale(0.5, 0.6),
+						Size = UDim2.fromScale(0.7, 0.28),
+						Color = Color3.fromRGB(240, 248, 240),
+						Text = "UPGRADE",
 					}),
 					-- hit area; the server decides if the purchase works
 					create("TextButton")({
@@ -301,7 +346,7 @@ local function ShopUI(levels, coins, onBuy, onClose)
 							FillDirection = Enum.FillDirection.Vertical,
 							SortOrder = Enum.SortOrder.LayoutOrder,
 							VerticalAlignment = Enum.VerticalAlignment.Top,
-							Padding = UDim.new(0.03, 0),
+							Padding = UDim.new(0.04, 0),
 						}),
 						cards,
 					}),

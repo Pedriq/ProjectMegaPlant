@@ -130,7 +130,7 @@ function Plastic.Panel(props)
 end
 
 --- Clean white text with a soft outline, fitted to its box (TextScaled).
---- props: Name, Text (string or function), AnchorPoint, Position, Size, XAlignment, Color, ZIndex
+--- props: Name, Text (string or function), AnchorPoint, Position, Size, XAlignment, Color, ZIndex, RichText
 function Plastic.Label(props)
 	return create("TextLabel")({
 		Name = props.Name or "Label",
@@ -140,6 +140,7 @@ function Plastic.Label(props)
 		ZIndex = props.ZIndex,
 		BackgroundTransparency = 1,
 		Text = props.Text,
+		RichText = props.RichText,
 		TextScaled = true,
 		Font = Plastic.Font,
 		TextColor3 = props.Color or Plastic.Colors.Text,
