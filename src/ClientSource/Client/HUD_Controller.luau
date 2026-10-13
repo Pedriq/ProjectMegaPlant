@@ -45,7 +45,7 @@ local function formatNumber(value)
 	return sign .. integer .. fraction
 end
 
-local TEXT_STROKE = Color3.fromRGB(0, 0, 0)
+local TEXT_STROKE = Color3.fromRGB(34, 80, 50)
 
 local function StatText(props)
 	return create("TextLabel")({
@@ -59,7 +59,7 @@ local function StatText(props)
 		TextXAlignment = Enum.TextXAlignment.Left,
 		Font = Enum.Font.GothamBold,
 		TextColor3 = props.Color or Color3.fromRGB(255, 255, 255),
-		TextStrokeTransparency = 0.55,
+		TextStrokeTransparency = 0.4,
 		TextStrokeColor3 = TEXT_STROKE,
 	})
 end

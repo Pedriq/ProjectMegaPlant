@@ -1,6 +1,6 @@
 --[[
-	Shared UI kit: a clean, minimal look inspired by Grow a Garden. Dark flat surfaces, a thin outline tinted
-	by the accent color, and a very faint Stud-material texture for depth.
+	Shared UI kit: a clean, minimal look inspired by Grow a Garden. Light, saturated flat surfaces with a thin outline in a
+	deeper shade of the accent color, and a very faint Stud-material texture for depth.
 	Everything is Scale-based; outlines are built from nested frames instead of pixel strokes.
 	(The module is still called Plastic so existing requires keep working.)
 ]]
@@ -20,18 +20,19 @@ Plastic.StudTexture = "rbxassetid://139348939021356"
 local STUD_TILE = UDim2.fromOffset(64, 64)
 
 Plastic.Colors = {
-	PanelBody = Color3.fromRGB(26, 31, 28),
-	PanelBorder = Color3.fromRGB(70, 84, 74),
-	TrackBorder = Color3.fromRGB(46, 54, 49),
-	TrackBody = Color3.fromRGB(14, 18, 16),
-	FillGreen = Color3.fromRGB(128, 214, 124),
-	FillGold = Color3.fromRGB(238, 196, 92),
-	Text = Color3.fromRGB(246, 248, 246),
-	TextStroke = Color3.fromRGB(8, 12, 10),
-	Gold = Color3.fromRGB(240, 196, 90),
+	PanelBody = Color3.fromRGB(146, 194, 138),
+	PanelBorder = Color3.fromRGB(88, 134, 90),
+	TrackBorder = Color3.fromRGB(84, 120, 88),
+	TrackBody = Color3.fromRGB(116, 150, 116),
+	FillGreen = Color3.fromRGB(178, 222, 126),
+	FillGold = Color3.fromRGB(238, 204, 108),
+	Text = Color3.fromRGB(255, 255, 255),
+	TextStroke = Color3.fromRGB(38, 68, 48),
+	Gold = Color3.fromRGB(242, 208, 118),
 }
 
-local SURFACE = Plastic.Colors.PanelBody
+-- accents are pulled towards this soft neutral to get natural pastel tones (less saturated, a bit calmer)
+local PASTEL_BASE = Color3.fromRGB(196, 204, 192)
 local NEUTRAL_BORDER = Plastic.Colors.PanelBorder
 local BLACK = Color3.new(0, 0, 0)
 
@@ -70,10 +71,10 @@ local function studs(corner, transparency)
 	})
 end
 
---- Flat two-layer panel: thin outline + body, with a faint stud texture.
+--- Flat two-layer panel: thin outline + bright body, with a faint stud texture.
 --- props: Name, AnchorPoint, Position, Size, BodyColor (the accent), BorderColor (only used if there is no
----        BodyColor), Style ("Surface" default: dark surface with an accent-tinted outline;
----        "Accent": solid accent color, for buttons and chips), Corner (0-0.5, default 0.28),
+---        BodyColor), Style ("Surface" default: lightly brightened accent;
+---        "Accent": the exact accent color, for buttons and chips), Corner (0-0.5, default 0.28),
 ---        Studs (default true), ZIndex, LayoutOrder, Children (list)
 --- Children are parented to the body; RootChildren (list) to the outer outline frame (e.g. a UIScale).
 function Plastic.Panel(props)
@@ -83,21 +84,16 @@ function Plastic.Panel(props)
 
 	local bodyColor = map(accent, function(color)
 		if not color then
-			return SURFACE
+			return Plastic.Colors.PanelBody
 		end
-		if solid then
-			return color:Lerp(BLACK, 0.12)
-		end
-		return SURFACE:Lerp(color, 0.14)
+		return color:Lerp(PASTEL_BASE, solid and 0.22 or 0.32)
 	end)
 	local borderColor = map(accent, function(color)
 		if not color then
 			return NEUTRAL_BORDER
 		end
-		if solid then
-			return color:Lerp(BLACK, 0.45)
-		end
-		return SURFACE:Lerp(color, 0.55)
+		-- thin outline: a deeper shade of the same hue
+		return color:Lerp(PASTEL_BASE, solid and 0.22 or 0.32):Lerp(BLACK, 0.34)
 	end)
 
 	local body = {
@@ -112,7 +108,7 @@ function Plastic.Panel(props)
 	}
 
 	if props.Studs ~= false then
-		body[#body + 1] = studs(corner, solid and 0.86 or 0.93)
+		body[#body + 1] = studs(corner, solid and 0.62 or 0.68)
 	end
 
 	append(body, props.Children)
@@ -148,7 +144,7 @@ function Plastic.Label(props)
 		Font = Plastic.Font,
 		TextColor3 = props.Color or Plastic.Colors.Text,
 		TextStrokeColor3 = Plastic.Colors.TextStroke,
-		TextStrokeTransparency = 0.6,
+		TextStrokeTransparency = 0.2,
 		TextXAlignment = props.XAlignment or Enum.TextXAlignment.Center,
 		TextTransparency = props.TextTransparency,
 	})
@@ -167,7 +163,7 @@ function Plastic.Bar(props)
 		BorderSizePixel = 0,
 
 		create("UICorner")({ CornerRadius = UDim.new(0.5, 0) }),
-		studs(0.5, 0.82),
+		studs(0.5, 0.6),
 	}
 
 	if props.Shimmer then

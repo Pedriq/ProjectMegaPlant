@@ -62,8 +62,8 @@ local function PlantCard(plantId, winnerScale)
 			AnchorPoint = Vector2.new(0.5, 0),
 			Position = UDim2.fromScale(0.5, 0.8),
 			Size = UDim2.fromScale(0.62, 0.14),
-			BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-			BackgroundTransparency = 0.55,
+			BackgroundColor3 = Color3.fromRGB(48, 80, 58),
+			BackgroundTransparency = 0.35,
 			BorderSizePixel = 0,
 
 			create("UICorner")({ CornerRadius = UDim.new(0.5, 0) }),
@@ -159,9 +159,9 @@ local function SelectionOverlay(reel, winnerId, values)
 		create("Frame")({
 			Name = "Dim",
 			Size = UDim2.fromScale(1, 1),
-			BackgroundColor3 = Color3.fromRGB(8, 20, 12),
+			BackgroundColor3 = Color3.fromRGB(70, 100, 80),
 			BackgroundTransparency = function()
-				return 1 - 0.68 * values.alpha()
+				return 1 - 0.45 * values.alpha()
 			end,
 			BorderSizePixel = 0,
 			Active = false, -- never sink input: the overlay must not interfere with camera/controls
@@ -189,7 +189,7 @@ local function SelectionOverlay(reel, winnerId, values)
 				AnchorPoint = Vector2.new(0.5, 0.5),
 				Position = UDim2.fromScale(0.5, 0.45),
 				Size = UDim2.fromScale(0.82, 0.44),
-				BodyColor = Color3.fromRGB(46, 96, 60),
+				BodyColor = Color3.fromRGB(122, 186, 130),
 				BorderColor = Plastic.Colors.PanelBorder,
 				Corner = 0.1,
 				Gloss = false,

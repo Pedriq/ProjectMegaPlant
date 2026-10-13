@@ -115,7 +115,7 @@ local function TrainingUI(station, onCancel)
 				AnchorPoint = Vector2.new(0.5, 1),
 				Position = UDim2.fromScale(0.5, 1),
 				Size = UDim2.fromScale(0.5, 0.62),
-				BodyColor = Color3.fromRGB(196, 86, 86),
+				BodyColor = Color3.fromRGB(226, 112, 108),
 				BorderColor = Color3.fromRGB(150, 36, 52),
 				Corner = 0.35,
 				Children = {
