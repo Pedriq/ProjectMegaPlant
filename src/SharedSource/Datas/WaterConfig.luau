@@ -51,4 +51,10 @@ WaterConfig.GrowthFlushInterval = 0.2
 -- and only sent when the rounded value changed, which keeps traffic low with 100 players.
 WaterConfig.StatsBroadcastInterval = 0.25
 
+---- Rewards for watering
+-- coins earned per unit of water poured on the plant (fractions accumulate, whole coins are paid out)
+WaterConfig.CoinsPerWater = 1
+-- a player gets +1 Plants Grown when the plant finishes if they poured at least this much water into it
+WaterConfig.MinWaterForPlantsGrown = 1
+
 return WaterConfig
