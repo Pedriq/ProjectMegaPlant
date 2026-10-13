@@ -5,7 +5,9 @@
 	folder in each zone).
 
 	Each zone is configured independently:
-		GainPerSecond  stat points earned per second of training. Either a number (same for every
+		Multiplier     fixed zone multiplier: Zone1 x1, Zone2 x2, Zone3 x5. Every zone grants
+		               BaseGainPerSecond (+3 per second) times its multiplier: 3 / 6 / 15 per second.
+		GainPerSecond  (optional) overrides the formula above. Either a number (same for every
 		               activity of the zone) or a table per activity, e.g. { Strength = 2, Mobility = 1 }.
 		Unlock         what the player needs before the zone can be used:
 		               { Stat = "PlantsGrown", Amount = 10 }  (Amount 0 / no Unlock = always open)
@@ -19,25 +21,28 @@ local TrainingConfig = {}
 -- Replicated on purpose: clients use it to fade other trainees at the same station.
 TrainingConfig.Attribute = "TrainingStation"
 
+-- stat points every zone grants per second of training, before its multiplier
+TrainingConfig.BaseGainPerSecond = 3
+
 TrainingConfig.RootPath = { "Garden", "TrainingZone" }
 
 TrainingConfig.Zones = {
 	Zone1 = {
 		Order = 1,
 		DisplayName = "Zone 1",
-		GainPerSecond = 1,
+		Multiplier = 1,
 		Unlock = { Stat = "PlantsGrown", Amount = 0 },
 	},
 	Zone2 = {
 		Order = 2,
 		DisplayName = "Zone 2",
-		GainPerSecond = 3,
+		Multiplier = 2,
 		Unlock = { Stat = "PlantsGrown", Amount = 3 },
 	},
 	Zone3 = {
 		Order = 3,
 		DisplayName = "Zone 3",
-		GainPerSecond = 8,
+		Multiplier = 5,
 		Unlock = { Stat = "PlantsGrown", Amount = 10 },
 	},
 }
@@ -97,11 +102,19 @@ function TrainingConfig.GetGainPerSecond(zoneId, activityId)
 	if not zone then
 		return 0
 	end
-	local gain = zone.GainPerSecond
-	if type(gain) == "table" then
-		return gain[activityId] or 0
+	local override = zone.GainPerSecond
+	if type(override) == "table" then
+		return override[activityId] or 0
+	elseif override then
+		return override
 	end
-	return gain or 0
+	return TrainingConfig.BaseGainPerSecond * (zone.Multiplier or 1)
+end
+
+--- The fixed multiplier of a zone (x1, x2, x5).
+function TrainingConfig.GetMultiplier(zoneId)
+	local zone = TrainingConfig.Zones[zoneId]
+	return zone and zone.Multiplier or 1
 end
 
 --- Zone ids sorted by their Order (Zone1, Zone2, ...).

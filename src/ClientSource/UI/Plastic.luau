@@ -108,7 +108,7 @@ function Plastic.Panel(props)
 	}
 
 	if props.Studs ~= false then
-		body[#body + 1] = studs(corner, solid and 0.62 or 0.68)
+		body[#body + 1] = studs(corner, solid and 0.76 or 0.8)
 	end
 
 	append(body, props.Children)
@@ -163,7 +163,7 @@ function Plastic.Bar(props)
 		BorderSizePixel = 0,
 
 		create("UICorner")({ CornerRadius = UDim.new(0.5, 0) }),
-		studs(0.5, 0.6),
+		studs(0.5, 0.74),
 	}
 
 	if props.Shimmer then
