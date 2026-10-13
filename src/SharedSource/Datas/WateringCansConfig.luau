@@ -19,6 +19,8 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local BalanceConfig = require(ReplicatedStorage.SharedSource.Datas.BalanceConfig)
+
 local WateringCansConfig = {}
 
 WateringCansConfig.AssetFolderNames = { "Assets", "Aseets" }
@@ -38,6 +40,14 @@ WateringCansConfig.Cans = {
 		PourTilt = 35,
 	},
 }
+
+--- Size multiplier of the carried can for a capacity: 1 at the base capacity, growing fast at first and
+--- flattening out (BalanceConfig.CanSize), so a bigger can is obvious but never absurd or clipping.
+function WateringCansConfig.GetCapacityScale(capacity)
+	local balance = BalanceConfig.CanSize
+	local extra = math.max(capacity - BalanceConfig.Capacity.Base, 0)
+	return 1 + balance.Growth * (1 - math.exp(-extra / balance.Scale))
+end
 
 --- Returns the config for a can, falling back to the default can.
 function WateringCansConfig.Get(canId)

@@ -113,6 +113,29 @@ BalanceConfig.Upgrades = {
 	MaxPrice = 1e9, -- prices are clamped (coins are capped at 2^31-1 anyway), so absurd levels can never overflow
 }
 
+---- Strength -> watering can capacity (see StatsConfig) and its visual size (see WateringCansConfig)
+-- capacity(S) = Base + Bonus * (1 - e^(-S / Scale)) + Tail * log10(1 + S / TailScale)
+--   Bonus/Scale: fast, very visible early growth (10 -> ~17 after one minute of Zone 1, ~36 after five)
+--   Tail:        an endless but slow logarithmic climb, so late game never explodes (S = 1,000,000 -> ~100)
+-- A bigger can makes each trip longer but saves walking; the throughput of a player is capped anyway
+-- (see the rate formula at the top), so capacity can't break the grow-time floor.
+BalanceConfig.Capacity = {
+	Base = 10,
+	Bonus = 45,
+	Scale = 300,
+	Tail = 14,
+	TailScale = 500,
+	-- the "Bigger Can!" banner shows every time the capacity crosses a multiple of this
+	Milestone = 5,
+}
+
+-- Visual scale of the carried can: 1 at base capacity, then
+--   1 + Growth * (1 - e^(-(capacity - Base) / Scale))  ->  1.2 at 16, 1.5 at 25, 1.7 at 36, 1.9 at 100+
+BalanceConfig.CanSize = {
+	Growth = 0.9,
+	Scale = 20,
+}
+
 ---- Harvest rewards
 BalanceConfig.Harvest = {
 	CoinsPerWater = 0.15, -- coins per unit of water the player poured into this plant

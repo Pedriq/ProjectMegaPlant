@@ -6,6 +6,7 @@ local StatsConfig = require(ReplicatedStorage.SharedSource.Datas.StatsConfig)
 local TrainingConfig = require(ReplicatedStorage.SharedSource.Datas.TrainingConfig)
 local WaterConfig = require(ReplicatedStorage.SharedSource.Datas.WaterConfig)
 local PlantsConfig = require(ReplicatedStorage.SharedSource.Datas.PlantsConfig)
+local BalanceConfig = require(ReplicatedStorage.SharedSource.Datas.BalanceConfig)
 local JuiceConfig = require(ReplicatedStorage.SharedSource.Datas.JuiceConfig)
 local RewardConfig = require(ReplicatedStorage.SharedSource.Datas.RewardConfig)
 local Effects = require(ReplicatedStorage.ClientSource.UI.Effects)
@@ -253,10 +254,12 @@ local function onStatChanged(statKey, newValue, oldValue)
 	if statKey == "Strength" then
 		local oldCapacity = StatsConfig.GetCapacity(oldValue)
 		local newCapacity = StatsConfig.GetCapacity(newValue)
-		if newCapacity > oldCapacity then
+		-- capacity grows smoothly, so only the multiples of the milestone get a banner
+		local milestone = BalanceConfig.Capacity.Milestone
+		if math.floor(newCapacity / milestone) > math.floor(oldCapacity / milestone) then
 			Banner_Controller:Show({
 				Title = "Bigger Can!",
-				Subtitle = ("Capacity %d -> %d"):format(oldCapacity, newCapacity),
+				Subtitle = ("Capacity %d"):format(newCapacity),
 				Color = Color3.fromRGB(110, 190, 255),
 				BorderColor = Color3.fromRGB(30, 80, 170),
 				Duration = 2.6,

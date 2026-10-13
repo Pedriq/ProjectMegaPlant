@@ -13,6 +13,8 @@
 		walk speed             <- Mobility (see `Movement`)
 ]]
 
+local BalanceConfig = require(game:GetService("ReplicatedStorage").SharedSource.Datas.BalanceConfig)
+
 local StatsConfig = {}
 
 -- Roblox built-in placeholder image; swap each stat's Icon for a real asset id later
@@ -57,21 +59,9 @@ StatsConfig.Order = {
 }
 
 ---- Strength -> watering can capacity
--- Capacity is `Base` until a threshold is reached; then it jumps to that threshold's capacity.
--- Thresholds must be sorted by Strength (ascending).
-StatsConfig.Capacity = {
-	Base = 10,
-	Thresholds = {
-		{ Strength = 120, Capacity = 14 }, -- the first "Bigger Can!": about a minute of Zone 1 training
-		{ Strength = 400, Capacity = 18 },
-		{ Strength = 1200, Capacity = 24 },
-		{ Strength = 3500, Capacity = 32 },
-		{ Strength = 9000, Capacity = 42 },
-		{ Strength = 22000, Capacity = 55 },
-		{ Strength = 55000, Capacity = 70 },
-		{ Strength = 130000, Capacity = 90 },
-	},
-}
+-- A smooth curve (numbers in BalanceConfig.Capacity): quick, clearly visible growth at the start, a
+-- plateau in the middle and a slow, endless logarithmic tail, so capacity keeps rising without ever exploding.
+StatsConfig.Capacity = BalanceConfig.Capacity
 
 ---- Mobility -> walk speed
 StatsConfig.Movement = {
@@ -95,15 +85,12 @@ end
 
 --- Watering can capacity for a Strength value.
 function StatsConfig.GetCapacity(strength)
-	local capacity = StatsConfig.Capacity.Base
-	for _, threshold in ipairs(StatsConfig.Capacity.Thresholds) do
-		if strength >= threshold.Strength then
-			capacity = threshold.Capacity
-		else
-			break
-		end
-	end
-	return capacity
+	local capacity = StatsConfig.Capacity
+	strength = math.max(strength, 0)
+	local value = capacity.Base
+		+ capacity.Bonus * (1 - math.exp(-strength / capacity.Scale))
+		+ capacity.Tail * math.log10(1 + strength / capacity.TailScale)
+	return math.floor(value)
 end
 
 --- Walk speed for a Mobility value.

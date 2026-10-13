@@ -9,7 +9,7 @@ local WaterState = require(ReplicatedStorage.ClientSource.Utilities.WaterState)
 --[[
 	Shows each player's equipped watering can floating above their head while they carry water.
 	  - hidden when the player has no water
-	  - scales between the can's MinScale and MaxScale with the fill level
+	  - scales between the can's MinScale and MaxScale with the fill level, and grows with the capacity (Strength)
 	  - turns toward the plant and tilts while the player is pouring
 	Every client renders every player's can from replicated attributes; the model is anchored and
 	moved per frame, so it never affects character physics.
@@ -114,7 +114,9 @@ local function update(player, dt, plantTarget)
 
 	local targetScale = 0
 	if water > 0 and canId and head and root and alive then
-		targetScale = config.MinScale + (config.MaxScale - config.MinScale) * math.clamp(water / capacity, 0, 1)
+		-- the fill level sets the size within the can, the capacity (Strength) makes the whole can bigger
+		targetScale = (config.MinScale + (config.MaxScale - config.MinScale) * math.clamp(water / capacity, 0, 1))
+			* WateringCansConfig.GetCapacityScale(capacity)
 	end
 
 	local entry = entries[player]
