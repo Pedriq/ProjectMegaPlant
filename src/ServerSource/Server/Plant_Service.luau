@@ -152,6 +152,11 @@ local function publishWeight()
 	end
 end
 
+--- Stops any running size animation (the finish sequence moves the plant on its own).
+function Plant_Service:Freeze()
+	stopScaleTween()
+end
+
 function Plant_Service:Clear()
 	stopScaleTween()
 	if currentModel then

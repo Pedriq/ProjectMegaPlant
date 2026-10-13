@@ -6,6 +6,7 @@ local StatsConfig = require(ReplicatedStorage.SharedSource.Datas.StatsConfig)
 local TrainingConfig = require(ReplicatedStorage.SharedSource.Datas.TrainingConfig)
 local WaterConfig = require(ReplicatedStorage.SharedSource.Datas.WaterConfig)
 local PlantsConfig = require(ReplicatedStorage.SharedSource.Datas.PlantsConfig)
+local JuiceConfig = require(ReplicatedStorage.SharedSource.Datas.JuiceConfig)
 local RewardConfig = require(ReplicatedStorage.SharedSource.Datas.RewardConfig)
 local Effects = require(ReplicatedStorage.ClientSource.UI.Effects)
 local WaitFor = require(ReplicatedStorage.ClientSource.Utilities.WaitFor)
@@ -151,7 +152,7 @@ end
 local function onPlantHarvested(result)
 	Banner_Controller:Show({
 		Title = ("+%s coins!"):format(formatNumber(result.Coins)),
-		Subtitle = ("%.1f kg plant  -  Your impact: %d%%  -  Plants Grown: %d"):format(
+		Subtitle = ("%.1f kg  -  %d%% impact  -  %d grown"):format(
 			result.Weight or 0,
 			math.floor((result.Share or 0) * 100 + 0.5),
 			result.PlantsGrown or 0
@@ -205,22 +206,28 @@ local trainingGain = {} -- [statKey] = points gained since the last popup
 local trainingCombo = 0
 local lastTrainingTick = 0
 
+local TRAINING_POPUP_STATS = { "Strength", "Mobility" }
+
+--- One popup with every stat that grew, each on its own line (so stats never overlap).
 local function flushTrainingGains()
-	for statKey, gained in pairs(trainingGain) do
+	local lines = {}
+	for _, statKey in ipairs(TRAINING_POPUP_STATS) do
+		local gained = trainingGain[statKey]
 		trainingGain[statKey] = nil
-		local position = getHeadPosition()
-		if position and gained > 0 then
-			local definition = StatsConfig.ByKey[statKey]
-			Effects.FloatText(
-				position + Vector3.new(0, 2.5, 0),
-				("+%d %s"):format(gained, definition.DisplayName),
-				{
-					Color = statKey == "Strength" and STRENGTH_COLOR or MOBILITY_COLOR,
-					Height = 2,
-					Rise = 4,
-				}
-			)
+		if gained and gained > 0 then
+			local color = statKey == "Strength" and STRENGTH_COLOR or MOBILITY_COLOR
+			table.insert(lines, ('<font color="#%s">+%d %s</font>'):format(color:ToHex(), gained, StatsConfig.ByKey[statKey].DisplayName))
 		end
+	end
+
+	local position = getHeadPosition()
+	if position and #lines > 0 then
+		Effects.FloatText(position + Vector3.new(0, 2.5 + #lines * 0.8, 0), table.concat(lines, "\n"), {
+			RichText = true,
+			Height = 1.9 * #lines,
+			Rise = 4,
+			Duration = 1,
+		})
 	end
 end
 
@@ -230,7 +237,10 @@ local function onStatChanged(statKey, newValue, oldValue)
 	end
 
 	-- training gains: batched popups + a rising tick
-	if (statKey == "Strength" or statKey == "Mobility") and player:GetAttribute(TrainingConfig.Attribute) then
+	if
+		(statKey == "Strength" or statKey == "Mobility")
+		and (player:GetAttribute(TrainingConfig.Attribute) or player:GetAttribute(JuiceConfig.BoostAttribute))
+	then
 		trainingGain[statKey] = (trainingGain[statKey] or 0) + (newValue - oldValue)
 		local now = os.clock()
 		trainingCombo = (now - lastTrainingTick < 1.2) and trainingCombo + 1 or 0
@@ -322,7 +332,7 @@ function Feedback_Controller:KnitStart()
 	-- batch training popups so they don't flood the screen
 	task.spawn(function()
 		while true do
-			task.wait(0.6)
+			task.wait(1)
 			flushTrainingGains()
 		end
 	end)

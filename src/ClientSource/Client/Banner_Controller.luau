@@ -9,8 +9,8 @@ local create = Vide.create
 local source = Vide.source
 
 --[[
-	Big celebratory banners ("Blooming!", "Plant fully grown!", "Bigger can!"...). They are queued and
-	shown one at a time with a springy pop-in, so important moments never overlap.
+	Compact notifications ("Blooming!", "Juice boost", "Bigger can!"...) near the bottom of the screen.
+	They are queued and shown one at a time, so important moments never overlap and gameplay stays visible.
 
 		Banner:Show({ Title = "...", Subtitle = "...", Color = Color3, BorderColor = Color3, Duration = 2.2 })
 ]]
@@ -20,8 +20,8 @@ local Banner_Controller = Knit.CreateController({
 
 local player = Players.LocalPlayer
 
-local DEFAULT_DURATION = 2.4
-local GAP = 0.3
+local DEFAULT_DURATION = 2
+local GAP = 0.15
 
 local queue = {}
 local running = false
@@ -32,7 +32,7 @@ local shown = source(false)
 local function BannerUI()
 	local scale = Vide.spring(function()
 		return shown() and 1 or 0
-	end, 0.3, 0.55)
+	end, 0.28, 0.75)
 
 	return create("ScreenGui")({
 		Name = "BannerHUD",
@@ -46,13 +46,13 @@ local function BannerUI()
 
 		create("Frame")({
 			Name = "Root",
-			AnchorPoint = Vector2.new(0.5, 0),
-			Position = UDim2.fromScale(0.5, 0.25),
-			Size = UDim2.fromScale(0.5, 0.17),
+			AnchorPoint = Vector2.new(0.5, 1),
+			Position = UDim2.fromScale(0.5, 0.86),
+			Size = UDim2.fromScale(0.27, 0.075),
 			BackgroundTransparency = 1,
 
 			create("UIAspectRatioConstraint")({
-				AspectRatio = 4.4,
+				AspectRatio = 5.2,
 				AspectType = Enum.AspectType.FitWithinMaxSize,
 			}),
 			create("UIScale")({
@@ -64,7 +64,7 @@ local function BannerUI()
 			Plastic.Panel({
 				Name = "Panel",
 				Size = UDim2.fromScale(1, 1),
-				Corner = 0.3,
+				Corner = 0.35,
 				BodyColor = function()
 					return data().Color
 				end,
@@ -76,7 +76,7 @@ local function BannerUI()
 						Name = "Title",
 						AnchorPoint = Vector2.new(0.5, 0),
 						Position = UDim2.fromScale(0.5, 0.08),
-						Size = UDim2.fromScale(0.9, 0.5),
+						Size = UDim2.fromScale(0.92, 0.52),
 						Text = function()
 							return data().Title
 						end,
@@ -85,7 +85,7 @@ local function BannerUI()
 						Name = "Subtitle",
 						AnchorPoint = Vector2.new(0.5, 0),
 						Position = UDim2.fromScale(0.5, 0.62),
-						Size = UDim2.fromScale(0.8, 0.28),
+						Size = UDim2.fromScale(0.92, 0.28),
 						Text = function()
 							return data().Subtitle
 						end,

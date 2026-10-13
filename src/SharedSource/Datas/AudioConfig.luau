@@ -41,6 +41,12 @@ AudioConfig.Sounds = {
 	FullyGrown = { Id = BUILTIN .. "impact_explosion_03.mp3", Volume = 0.5, Pitch = 1.2 },
 	Harvest = { Id = BUILTIN .. "action_jump.mp3", Volume = 0.9, Pitch = 2.1 },
 
+	---- Juice pool
+	PlantLaunch = { Id = BUILTIN .. "action_get_up.mp3", Volume = 0.7, Pitch = 0.8 },
+	PlantExplode = { Id = BUILTIN .. "impact_explosion_03.mp3", Volume = 0.9, Pitch = 0.95 },
+	PoolAppear = { Id = BUILTIN .. "impact_water.mp3", Volume = 0.7, Pitch = 1.3 },
+	JuiceEnter = { Id = BUILTIN .. "action_jump.mp3", Volume = 0.8, Pitch = 1.7 },
+
 	---- Shop
 	ShopOpen = { Id = BUILTIN .. "action_get_up.mp3", Volume = 0.6, Pitch = 1.2 },
 	Purchase = { Id = BUILTIN .. "action_jump.mp3", Volume = 0.85, Pitch = 1.9 },

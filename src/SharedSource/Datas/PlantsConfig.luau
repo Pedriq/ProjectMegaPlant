@@ -37,7 +37,7 @@ PlantsConfig.PlantTag = "GardenPlant" -- CollectionService tag on the plant mode
 
 ---- Cycle
 PlantsConfig.Cycle = {
-	FinishedDuration = 180, -- seconds between "fully grown" and the next plant being selected
+	FinishedDuration = 40, -- TESTING (was 180): seconds between "fully grown" and the next plant being selected
 	FirstCycleDelay = 2, -- seconds after the first player joins before the first selection
 }
 
@@ -162,7 +162,13 @@ function PlantsConfig.GetWeight(plantId)
 	return plant and (plant.Weight or (rarity and rarity.Weight)) or 0
 end
 
+-- TESTING: when set, every plant grows in this many seconds. Set to nil for the real grow times.
+PlantsConfig.TestGrowTime = 20
+
 function PlantsConfig.GetGrowTime(plantId)
+	if PlantsConfig.TestGrowTime then
+		return PlantsConfig.TestGrowTime
+	end
 	local plant = PlantsConfig.Plants[plantId]
 	local rarity = PlantsConfig.GetRarity(plantId)
 	return plant and (plant.GrowTime or (rarity and rarity.GrowTime)) or 600
