@@ -18,7 +18,7 @@ local RewardConfig = {}
 
 RewardConfig.Pour = {
 	BeatInterval = 0.5, -- seconds of pouring per payout
-	CritChance = 0.1, -- chance that a beat is a LUCKY pour
+	CritChance = BalanceConfig.Luck.BaseCritChance, -- base chance that a beat is a LUCKY pour (the Luck upgrade raises it)
 	CritMultiplier = 3,
 	ComboStep = 0.04, -- +4% coins per combo level
 	ComboMax = 25, -- combo level cap (+100% at the cap)

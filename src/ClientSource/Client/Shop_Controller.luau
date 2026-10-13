@@ -62,7 +62,8 @@ local function UpgradeCard(upgradeId, layoutOrder, level, coins, onBuy)
 	return Plastic.Panel({
 		Name = upgradeId,
 		LayoutOrder = layoutOrder,
-		Size = UDim2.fromScale(1, 0.475),
+		-- the cards share the height of the list (3% gaps), whatever the number of upgrades
+		Size = UDim2.fromScale(1, (1 - 0.03 * (#UpgradesConfig.Order - 1)) / #UpgradesConfig.Order),
 		BodyColor = Color3.fromRGB(104, 168, 232),
 		BorderColor = Color3.fromRGB(30, 78, 170),
 		Corner = 0.2,
@@ -126,12 +127,7 @@ local function UpgradeCard(upgradeId, layoutOrder, level, coins, onBuy)
 				XAlignment = Enum.TextXAlignment.Left,
 				Color = Color3.fromRGB(190, 255, 200),
 				Text = function()
-					local current = UpgradesConfig.GetMultiplier(upgradeId, level())
-					return ("%s x%.2f -> x%.2f"):format(
-						config.EffectName,
-						current,
-						UpgradesConfig.GetMultiplier(upgradeId, level() + 1)
-					)
+					return UpgradesConfig.GetEffectText(upgradeId, level())
 				end,
 			}),
 

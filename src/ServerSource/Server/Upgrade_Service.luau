@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Knit = require(ReplicatedStorage.Packages.Knit)
 local Signal = require(ReplicatedStorage.Packages.Signal)
 local UpgradesConfig = require(ReplicatedStorage.SharedSource.Datas.UpgradesConfig)
+local BalanceConfig = require(ReplicatedStorage.SharedSource.Datas.BalanceConfig)
 
 --[[
 	Coin upgrades (see UpgradesConfig). Levels are saved in the player's profile (Upgrades) and
@@ -53,6 +54,12 @@ function Upgrade_Service:GetMultiplier(player, effect)
 		end
 	end
 	return multiplier
+end
+
+--- Chance of a lucky (critical) pour for this player: the base chance raised by the Luck upgrade, capped.
+function Upgrade_Service:GetCritChance(player)
+	local luck = BalanceConfig.Luck
+	return math.min(luck.BaseCritChance * Upgrade_Service:GetMultiplier(player, "CritChance"), luck.MaxCritChance)
 end
 
 ---- Purchasing

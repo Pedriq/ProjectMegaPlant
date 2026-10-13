@@ -34,7 +34,7 @@ local Reward_Service = Knit.CreateService({
 	},
 })
 
-local Watering_Service, PlantCycle_Service, Stats_Service, Plant_Service
+local Watering_Service, PlantCycle_Service, Stats_Service, Plant_Service, Upgrade_Service
 
 local random = Random.new()
 local pourState = {} -- [player] = { Water, Timer, Combo, LastBeat, Remainder }
@@ -69,7 +69,7 @@ local function payBeat(player, final)
 	end
 
 	local multiplier = 1 + math.min(state.Combo, config.ComboMax) * config.ComboStep
-	local lucky = not final and random:NextNumber() < config.CritChance
+	local lucky = not final and random:NextNumber() < Upgrade_Service:GetCritChance(player)
 	if lucky then
 		multiplier *= config.CritMultiplier
 	end
@@ -202,6 +202,7 @@ function Reward_Service:KnitStart()
 	PlantCycle_Service = Knit.GetService("PlantCycle_Service")
 	Stats_Service = Knit.GetService("Stats_Service")
 	Plant_Service = Knit.GetService("Plant_Service")
+	Upgrade_Service = Knit.GetService("Upgrade_Service")
 
 	Watering_Service.Poured:Connect(onPoured)
 	Watering_Service.PourStopped:Connect(function(player)

@@ -5,7 +5,7 @@
 
 	Upgrade fields:
 		DisplayName / Description / Icon
-		Effect         what it speeds up: "FillSpeed" (water collection) or "PourSpeed" (watering)
+		Effect         what it improves: "FillSpeed" (water collection), "PourSpeed" (watering) or "CritChance" (Luck)
 		EffectName     short label used in the shop
 		(no max level: upgrades can be bought forever)
 		Curve numbers (BasePrice, Bonus, Scale, Tail) come from BalanceConfig.Upgrades, where the three
@@ -24,7 +24,7 @@ local PLACEHOLDER_ICON = "rbxasset://textures/ui/GuiImagePlaceholder.png"
 -- player attributes "Upgrade_<Id>" hold the replicated level of each upgrade
 UpgradesConfig.AttributePrefix = "Upgrade_"
 
-UpgradesConfig.Order = { "WaterCollectionSpeed", "WateringSpeed" }
+UpgradesConfig.Order = { "WaterCollectionSpeed", "WateringSpeed", "Luck" }
 
 UpgradesConfig.Upgrades = {
 	WaterCollectionSpeed = {
@@ -42,6 +42,16 @@ UpgradesConfig.Upgrades = {
 		Effect = "PourSpeed",
 		EffectName = "Pour speed",
 		Curve = BalanceConfig.Upgrades.WateringSpeed,
+	},
+	Luck = {
+		DisplayName = "Luck",
+		Description = "More lucky pours while watering",
+		Icon = PLACEHOLDER_ICON, -- TODO: icon
+		Effect = "CritChance",
+		EffectName = "Crit chance",
+		-- shown as a percentage: base chance * multiplier, never above Max
+		Percent = { Base = BalanceConfig.Luck.BaseCritChance, Max = BalanceConfig.Luck.MaxCritChance },
+		Curve = BalanceConfig.Upgrades.Luck,
 	},
 }
 
@@ -97,6 +107,28 @@ function UpgradesConfig.GetMultiplier(upgradeId, level)
 	local curve = UpgradesConfig.Upgrades[upgradeId].Curve
 	level = math.max(level, 0)
 	return 1 + curve.Bonus * (1 - math.exp(-level / curve.Scale)) + curve.Tail * level
+end
+
+--- The value an upgrade gives at `level`: the speed multiplier, or for percentage upgrades (Luck) the
+--- resulting probability (0-1, capped).
+function UpgradesConfig.GetValue(upgradeId, level)
+	local config = UpgradesConfig.Upgrades[upgradeId]
+	local multiplier = UpgradesConfig.GetMultiplier(upgradeId, level)
+	if config.Percent then
+		return math.min(config.Percent.Base * multiplier, config.Percent.Max)
+	end
+	return multiplier
+end
+
+--- "Fill speed x1.24 -> x1.45" or "Crit chance 10.0% -> 11.8%": what the shop shows under an upgrade.
+function UpgradesConfig.GetEffectText(upgradeId, level)
+	local config = UpgradesConfig.Upgrades[upgradeId]
+	local current = UpgradesConfig.GetValue(upgradeId, level)
+	local nextValue = UpgradesConfig.GetValue(upgradeId, level + 1)
+	if config.Percent then
+		return ("%s %.1f%% -> %.1f%%"):format(config.EffectName, current * 100, nextValue * 100)
+	end
+	return ("%s x%.2f -> x%.2f"):format(config.EffectName, current, nextValue)
 end
 
 return UpgradesConfig

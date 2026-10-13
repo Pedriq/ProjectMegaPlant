@@ -107,10 +107,24 @@ BalanceConfig.Upgrades = {
 		Scale = 10,
 		Tail = 0.008,
 	},
+	-- Luck: raises the chance of a LUCKY pour (critical hit while watering). The multiplier curve is the same
+	-- shape as the speed upgrades; chance = min(BaseCritChance * multiplier, MaxCritChance).
+	Luck = {
+		BasePrice = 60,
+		Bonus = 2,
+		Scale = 12,
+		Tail = 0.01,
+	},
 	GrowthEarly = 1.15,
 	GrowthLate = 1.26,
 	SoftLevel = 12, -- the HOOK phase ends here
 	MaxPrice = 1e9, -- prices are clamped (coins are capped at 2^31-1 anyway), so absurd levels can never overflow
+}
+
+-- Critical hits while watering ("lucky pours"): the base chance and the cap the Luck upgrade can reach
+BalanceConfig.Luck = {
+	BaseCritChance = 0.1,
+	MaxCritChance = 0.4,
 }
 
 ---- Strength -> watering can capacity (see StatsConfig) and its visual size (see WateringCansConfig)
