@@ -38,7 +38,46 @@ BalanceConfig.Reference = {
 }
 
 ---- Plant goal and growth
+--
+-- GROW TIME: every rarity has a TARGET time: how long a full (100 player) server in the early game needs.
+-- The plant's configured timer ("base time") is longer, because the water boost shortens it:
+--     boosted time = base * (1 - BoostMax * goalFraction),   goalFraction = water / goal (capped at 1)
+-- A reference server reaches 100% of the goal at Fill of the way, so  base = target * (1 + BoostMax / Fill).
+-- Real servers land around the target: more / stronger players push towards 1 - BoostMax of the base time
+-- (about 0.8 x target), a thin server needs up to the full base time (about 2 x target).
+-- Rarer plants are faster, but heavier: they pay more per plant (see BaseWeight and Juice multipliers).
+BalanceConfig.TargetTime = {
+	Common = 1200, -- 20:00, the baseline: watering a plant is a long, shared effort
+	Uncommon = 960, -- 16:00
+	Rare = 720, -- 12:00
+	Epic = 480, -- 8:00
+	Legendary = 300, -- 5:00
+}
+
+-- the waiting time after a plant finished (the juice pool is open), before the next plant is selected
+BalanceConfig.Cycle = {
+	FinishedDuration = 180,
+}
+
+-- The water goal follows the population present when the plant starts, so a small group is not
+-- stuck with a goal made for 100 players (and the harvest pool shrinks with it).
+--   population factor = clamp(players / Reference.Players, Min, 1)
+BalanceConfig.Population = {
+	Min = 0.1, -- a lone player never gets a trivially small goal
+}
+
+-- The first plants of a server are easier (a lower goal), which gives a quick, rewarding start.
+--   difficulty = EarlyFactor for the first plant, rising linearly to 1 after RampCycles plants
+BalanceConfig.Difficulty = {
+	EarlyFactor = 0.5,
+	RampCycles = 8,
+}
+
 BalanceConfig.Goal = {
+	-- how much the water goal can shorten the plant's timer (0.6 = up to 60%)
+	BoostMax = 0.6,
+	-- with few players a single player may count for more: cap = max(PlayerCapFraction, CapShare / players)
+	CapShare = 1.25,
 	-- goal = Players * ActiveFraction * WaterPerSecond * (real grow time) * Fill
 	-- (Fill < 1: a full early-game server reaches the goal a bit before the plant would finish)
 	Fill = 0.6,
@@ -76,13 +115,22 @@ BalanceConfig.Upgrades = {
 
 ---- Harvest rewards
 BalanceConfig.Harvest = {
-	CoinsPerWater = 0.3, -- coins per unit of water the player poured into this plant
+	CoinsPerWater = 0.15, -- coins per unit of water the player poured into this plant
+	-- everyone who helped gets this on top (a "thank you" that scales with how long the plant takes)
+	BaseByRarity = {
+		Common = 90,
+		Uncommon = 135,
+		Rare = 210,
+		Epic = 330,
+		Legendary = 600,
+	},
 	-- the prize pool of a plant = its weight (kg) * PoolPerKg, split between contributors.
-	-- An average contributor of a full server should get ~100-150 coins from the pool of a Common plant.
-	PoolPerKg = 1500,
+	-- An average contributor of a full server gets ~500-600 coins from the pool of a Common plant (a 20 minute
+	-- effort), roughly a quarter of what they earn while pouring for it.
+	PoolPerKg = 7500,
 	-- shares use (water ^ ShareExponent): 1 = strictly proportional, lower = flatter (top players take less)
 	ShareExponent = 0.75,
-	FirstHarvestBonus = 250, -- the first plant a player ever helps to grow: a big early achievement
+	FirstHarvestBonus = 600, -- the first plant a player ever helps to grow: a big early achievement
 }
 
 ---- Plant rarity -> weight (kg) of a fresh plant. Rarer = heavier, but gently, so the pool stays sane.

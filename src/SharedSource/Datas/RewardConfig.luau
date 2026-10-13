@@ -27,7 +27,7 @@ RewardConfig.Pour = {
 
 -- The grow timer shrinks by up to this fraction when the water goal is reached.
 RewardConfig.Boost = {
-	MaxFraction = 0.6,
+	MaxFraction = BalanceConfig.Goal.BoostMax,
 	-- one player counts for at most this fraction of the water goal (towards the boost and the stages),
 	-- so a single heavily upgraded player can't shorten the plant on their own
 	PlayerCapFraction = BalanceConfig.Goal.PlayerCapFraction,
@@ -36,11 +36,11 @@ RewardConfig.Boost = {
 
 -- Fraction of the water goal at which each stage is reached.
 RewardConfig.Stages = {
-		{ Name = "Sprouting!", Fraction = 0.2, BonusCoins = 20 },
-	{ Name = "Budding!", Fraction = 0.4, BonusCoins = 30 },
-	{ Name = "Blooming!", Fraction = 0.6, BonusCoins = 45 },
-	{ Name = "Thriving!", Fraction = 0.8, BonusCoins = 70 },
-	{ Name = "MAX GROWTH!", Fraction = 1.0, BonusCoins = 120 },
+			{ Name = "Sprouting!", Fraction = 0.2, BonusCoins = 60 },
+	{ Name = "Budding!", Fraction = 0.4, BonusCoins = 90 },
+	{ Name = "Blooming!", Fraction = 0.6, BonusCoins = 135 },
+	{ Name = "Thriving!", Fraction = 0.8, BonusCoins = 210 },
+	{ Name = "MAX GROWTH!", Fraction = 1.0, BonusCoins = 360 },
 }
 
 RewardConfig.Harvest = {
@@ -51,13 +51,7 @@ RewardConfig.Harvest = {
 	PoolPerKg = BalanceConfig.Harvest.PoolPerKg,
 	ShareExponent = BalanceConfig.Harvest.ShareExponent,
 	FirstHarvestBonus = BalanceConfig.Harvest.FirstHarvestBonus, -- the first plant a player helps to grow
-	BaseByRarity = { -- everyone who helped gets this
-		Common = 30,
-		Uncommon = 45,
-		Rare = 70,
-		Epic = 110,
-		Legendary = 200,
-	},
+	BaseByRarity = BalanceConfig.Harvest.BaseByRarity, -- everyone who helped gets this
 }
 
 -- how often the shared goal / stages are re-evaluated (seconds)

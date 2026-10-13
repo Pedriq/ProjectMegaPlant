@@ -74,6 +74,8 @@ TrainingConfig.Activities = {
 	},
 }
 
+-- Training starts with a hold-prompt on each station's Main part. It ends with the Cancel button or by
+-- jumping (Space / gamepad A) - see Training_Controller.
 TrainingConfig.Prompt = {
 	HoldDuration = 0.4,
 	MaxActivationDistance = 10,

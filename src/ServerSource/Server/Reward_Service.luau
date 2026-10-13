@@ -1,11 +1,13 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local ServerScriptService = game:GetService("ServerScriptService")
 
 local Knit = require(ReplicatedStorage.Packages.Knit)
 local WaterConfig = require(ReplicatedStorage.SharedSource.Datas.WaterConfig)
 local PlantsConfig = require(ReplicatedStorage.SharedSource.Datas.PlantsConfig)
 local RewardConfig = require(ReplicatedStorage.SharedSource.Datas.RewardConfig)
+local PlantGoal = require(ServerScriptService.ServerSource.Utilities.PlantGoal)
 
 --[[
 	Everything the player earns from watering, decided on the server (see RewardConfig):
@@ -112,8 +114,8 @@ local function checkGoal()
 	end
 
 	-- every player counts for at most PlayerCapFraction of the goal, so no single player can trivialize the plant
-	local goal = math.max(PlantsConfig.GetWaterGoal(cycle.PlantId), 1)
-	local cap = goal * RewardConfig.Boost.PlayerCapFraction
+	local goal = PlantGoal.GetGoal(cycle.PlantId, cycle.CycleId)
+	local cap = PlantGoal.GetPlayerCap(cycle.PlantId, cycle.CycleId)
 	local total = 0
 	for _, poured in pairs(Watering_Service:GetContributions(cycle.CycleId)) do
 		total += math.min(poured, cap)
@@ -154,7 +156,8 @@ local function onPlantGrown(cycleId, plantId)
 	local baseCoins = harvest.BaseByRarity[rarity] or 0
 	-- heavier plants pay more: the pool scales with the weight the plant reached
 	local weight = Plant_Service:GetWeight()
-	local pool = weight * harvest.PoolPerKg
+	-- a thinner server shares a proportionally smaller pool (it also had a proportionally smaller goal)
+	local pool = weight * harvest.PoolPerKg * PlantGoal.GetPopulation(cycleId)
 
 	Reward_Service.Client.PlantFullyGrown:FireAll(plantId)
 

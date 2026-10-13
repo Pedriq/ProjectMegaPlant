@@ -14,7 +14,8 @@ local HoldSessions = require(ServerScriptService.ServerSource.Utilities.HoldSess
 	    disabled even if a client misbehaves
 	  - sets the replicated player attribute TrainingConfig.Attribute to the station id
 	  - grows the activity's stat by the zone's GainPerSecond until training stops
-	Training stops on cancel, death, respawn, leaving, or if the character disappears.
+	Training stops on cancel (the Cancel button or a jump, both call CancelTraining), death, respawn,
+	leaving, or if the character disappears.
 	Everything that was changed is restored by one function (stop), so controls always come back.
 ]]
 local Training_Service = Knit.CreateService({

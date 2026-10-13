@@ -10,6 +10,10 @@ local WaitFor = require(ReplicatedStorage.ClientSource.Utilities.WaitFor)
 	Shows which training zones are locked for the local player by changing the prompt texts locally
 	("Locked" + the requirement). This is purely cosmetic: the server validates the unlock itself
 	every time training starts, so a locked zone can never be used.
+
+	It also hides the training prompts while the LOCAL player is training and shows them again the moment
+	the training ends (Cancel button, jump, death, ...). Prompt.Enabled is changed on this client only, so
+	every other player keeps seeing and using the prompts normally.
 ]]
 local TrainingLock_Controller = Knit.CreateController({
 	Name = "TrainingLock_Controller",
@@ -24,6 +28,15 @@ local function getStat(statKey)
 	local leaderstats = player:FindFirstChild(StatsConfig.Folder)
 	local value = definition and leaderstats and leaderstats:FindFirstChild(definition.DisplayName)
 	return value and value.Value or 0
+end
+
+local function isTraining()
+	return player:GetAttribute(TrainingConfig.Attribute) ~= nil
+end
+
+--- Local-only visibility: hidden while the local player trains, visible otherwise.
+local function applyVisibility(prompt)
+	prompt.Enabled = not isTraining()
 end
 
 local function refresh(prompt)
@@ -64,6 +77,7 @@ local function register(instance)
 		prompts[instance] = nil
 	end)
 	refresh(instance)
+	applyVisibility(instance)
 end
 
 local function refreshAll()
@@ -72,7 +86,17 @@ local function refreshAll()
 	end
 end
 
+local function applyVisibilityToAll()
+	for prompt in pairs(prompts) do
+		applyVisibility(prompt)
+	end
+end
+
 function TrainingLock_Controller:KnitStart()
+	-- the attribute is set / cleared by the server whenever this player's training starts / ends
+	player:GetAttributeChangedSignal(TrainingConfig.Attribute):Connect(applyVisibilityToAll)
+	player.CharacterAdded:Connect(applyVisibilityToAll)
+
 	-- re-evaluate whenever the stats that can unlock zones change
 	local leaderstats = WaitFor.Child(player, StatsConfig.Folder)
 	if not leaderstats then

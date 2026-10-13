@@ -7,6 +7,7 @@ local Signal = require(ReplicatedStorage.Packages.Signal)
 local WaterConfig = require(ReplicatedStorage.SharedSource.Datas.WaterConfig)
 local PlantsConfig = require(ReplicatedStorage.SharedSource.Datas.PlantsConfig)
 local HoldSessions = require(ServerScriptService.ServerSource.Utilities.HoldSessions)
+local PlantGoal = require(ServerScriptService.ServerSource.Utilities.PlantGoal)
 
 local ATTR = WaterConfig.Attributes
 
@@ -109,7 +110,7 @@ local function startWatering(player)
 		if poured > 0 then
 			pendingPoints += poured
 				* PlantsConfig.Growth.PointsPerWater
-				* PlantsConfig.GetGrowthMultiplier(plantId)
+				* PlantsConfig.GetGrowthMultiplier(plantId, PlantGoal.GetGoal(plantId, state.CycleId))
 
 			local cycle = contributions[state.CycleId]
 			if not cycle then

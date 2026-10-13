@@ -7,7 +7,7 @@
 		DisplayName (optional) defaults to the plant id
 		ModelName   (optional) name of the model in the Fruits folder, defaults to the plant id
 		Weight      (optional) overrides the rarity weight (relative selection chance)
-		GrowTime    (optional) overrides the rarity grow time, in seconds
+		GrowTime    (optional) overrides the derived grow time, in seconds (normally from BalanceConfig.TargetTime)
 		GrowthMultiplier (optional) overrides the rarity multiplier for growth gained from watering
 		WaterGoal   (optional) overrides the rarity water goal (see below)
 		BaseWeight  (optional) overrides the rarity base weight (see below)
@@ -15,7 +15,7 @@
 	Rarity fields:
 		Order       sort order, lower = more common
 		Weight      relative chance of ONE plant of this rarity being selected
-		GrowTime    seconds of growing; rarer rarities grow faster
+		GrowTime    (optional) fixed grow time; by default derived from BalanceConfig.TargetTime (rarer = faster)
 		GrowthMultiplier  multiplier for growth points gained per unit of water
 		WaterGoal   total water (all players) that fully boosts the plant; the grow timer shrinks as the
 		            (derived from BalanceConfig unless set explicitly) 		            server approaches it (see RewardConfig)
@@ -39,7 +39,7 @@ PlantsConfig.PlantTag = "GardenPlant" -- CollectionService tag on the plant mode
 
 ---- Cycle
 PlantsConfig.Cycle = {
-	FinishedDuration = 40, -- TESTING (was 180): seconds between "fully grown" and the next plant being selected
+	FinishedDuration = BalanceConfig.Cycle.FinishedDuration, -- seconds between "fully grown" and the next plant being selected
 	FirstCycleDelay = 2, -- seconds after the first player joins before the first selection
 }
 
@@ -69,7 +69,6 @@ PlantsConfig.Rarities = {
 		Order = 1,
 		DisplayName = "Common",
 		Weight = 20,
-		GrowTime = 600,
 		GrowthMultiplier = 1,
 		BaseWeight = BalanceConfig.BaseWeight.Common,
 		Color = Color3.fromRGB(150, 214, 92),
@@ -79,7 +78,6 @@ PlantsConfig.Rarities = {
 		Order = 2,
 		DisplayName = "Uncommon",
 		Weight = 12,
-		GrowTime = 480,
 		GrowthMultiplier = 1,
 		BaseWeight = BalanceConfig.BaseWeight.Uncommon,
 		Color = Color3.fromRGB(86, 200, 168),
@@ -89,7 +87,6 @@ PlantsConfig.Rarities = {
 		Order = 3,
 		DisplayName = "Rare",
 		Weight = 7,
-		GrowTime = 360,
 		GrowthMultiplier = 1,
 		BaseWeight = BalanceConfig.BaseWeight.Rare,
 		Color = Color3.fromRGB(88, 160, 255),
@@ -99,7 +96,6 @@ PlantsConfig.Rarities = {
 		Order = 4,
 		DisplayName = "Epic",
 		Weight = 3,
-		GrowTime = 240,
 		GrowthMultiplier = 1,
 		BaseWeight = BalanceConfig.BaseWeight.Epic,
 		Color = Color3.fromRGB(190, 108, 255),
@@ -109,7 +105,6 @@ PlantsConfig.Rarities = {
 		Order = 5,
 		DisplayName = "Legendary",
 		Weight = 1,
-		GrowTime = 120,
 		GrowthMultiplier = 1,
 		BaseWeight = BalanceConfig.BaseWeight.Legendary,
 		Color = Color3.fromRGB(255, 196, 56),
@@ -160,14 +155,20 @@ function PlantsConfig.GetWeight(plantId)
 	return plant and (plant.Weight or (rarity and rarity.Weight)) or 0
 end
 
--- TESTING: when set, every plant grows in this many seconds. Set to nil for the real grow times.
-PlantsConfig.TestGrowTime = 20
+-- TESTING: when set (e.g. 20), every plant grows in this many seconds. nil = the real, balanced grow times.
+PlantsConfig.TestGrowTime = nil
 
 --- The real (configured) grow time, ignoring the testing override.
 function PlantsConfig.GetBaseGrowTime(plantId)
 	local plant = PlantsConfig.Plants[plantId]
 	local rarity = PlantsConfig.GetRarity(plantId)
-	return plant and (plant.GrowTime or (rarity and rarity.GrowTime)) or 600
+	local explicit = plant and (plant.GrowTime or (rarity and rarity.GrowTime))
+	if explicit then
+		return explicit
+	end
+	-- derived from the rarity's target time (see BalanceConfig.TargetTime)
+	local target = BalanceConfig.TargetTime[plant and plant.Rarity or "Common"] or BalanceConfig.TargetTime.Common
+	return target * (1 + BalanceConfig.Goal.BoostMax / BalanceConfig.Goal.Fill)
 end
 
 function PlantsConfig.GetGrowTime(plantId)
@@ -198,11 +199,12 @@ end
 
 --- Growth points per unit of water. Normalised by the goal: reaching the water goal always yields
 --- BalanceConfig.PointsAtGoal points, so every plant has the same size at its own goal.
-function PlantsConfig.GetGrowthMultiplier(plantId)
+--- `goal` is the water goal of this particular cycle (defaults to the full-server goal).
+function PlantsConfig.GetGrowthMultiplier(plantId, goal)
 	local plant = PlantsConfig.Plants[plantId]
 	local rarity = PlantsConfig.GetRarity(plantId)
 	local multiplier = plant and (plant.GrowthMultiplier or (rarity and rarity.GrowthMultiplier)) or 1
-	return multiplier * BalanceConfig.PointsAtGoal / PlantsConfig.GetWaterGoal(plantId)
+	return multiplier * BalanceConfig.PointsAtGoal / math.max(goal or PlantsConfig.GetWaterGoal(plantId), 1)
 end
 
 function PlantsConfig.GetBaseWeight(plantId)

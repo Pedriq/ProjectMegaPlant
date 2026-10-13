@@ -53,9 +53,7 @@ local function applySink()
 			Enum.KeyCode.Down,
 			Enum.KeyCode.Left,
 			Enum.KeyCode.Right,
-			Enum.KeyCode.Space,
-			Enum.KeyCode.Thumbstick1,
-			Enum.KeyCode.ButtonA
+			Enum.KeyCode.Thumbstick1
 		)
 	end
 end
@@ -83,6 +81,25 @@ end
 local function setControlsEnabled(enabled)
 	controlsWanted = enabled
 	applyControls()
+end
+
+---- Leaving by jumping
+
+local JUMP_ACTION = "TrainingJumpExit"
+
+--- While training, Space / gamepad A ends the session (the same server call as the Cancel button).
+--- The action is bound with a high priority and sinks the input, so the jump itself never happens.
+local function bindJumpExit(onJump)
+	ContextActionService:BindActionAtPriority(JUMP_ACTION, function(_, inputState)
+		if inputState == Enum.UserInputState.Begin then
+			onJump()
+		end
+		return Enum.ContextActionResult.Sink
+	end, false, Enum.ContextActionPriority.High.Value + 1, Enum.KeyCode.Space, Enum.KeyCode.ButtonA)
+end
+
+local function unbindJumpExit()
+	ContextActionService:UnbindAction(JUMP_ACTION)
 end
 
 ---- UI
@@ -186,11 +203,20 @@ function Training_Controller:KnitStart()
 		local value = player:GetAttribute(ATTRIBUTE)
 		station(value)
 		setControlsEnabled(value == nil)
+		-- jumping ends the session, but only while one is running
+		if value ~= nil then
+			bindJumpExit(function()
+				training:CancelTraining():catch(warn)
+			end)
+		else
+			unbindJumpExit()
+		end
 	end
 	player:GetAttributeChangedSignal(ATTRIBUTE):Connect(onAttributeChanged)
 
 	-- a new character must never inherit disabled controls
 	player.CharacterAdded:Connect(function()
+		unbindJumpExit()
 		if player:GetAttribute(ATTRIBUTE) == nil then
 			setControlsEnabled(true)
 		end
