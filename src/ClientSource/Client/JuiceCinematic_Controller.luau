@@ -25,7 +25,7 @@ local JuiceCinematic_Controller = Knit.CreateController({
 })
 
 local player = Players.LocalPlayer
-local Audio_Controller, Banner_Controller
+local Audio_Controller, Banner_Controller, Leaderboard_Controller
 
 local BINDING = "JuiceCinematic"
 local running = false
@@ -280,9 +280,17 @@ end
 function JuiceCinematic_Controller:KnitStart()
 	Audio_Controller = Knit.GetController("Audio_Controller")
 	Banner_Controller = Knit.GetController("Banner_Controller")
+	Leaderboard_Controller = Knit.GetController("Leaderboard_Controller")
 
 	local service = Knit.GetService("JuicePool_Service")
 	service.Cinematic:Connect(function(data)
+		-- the board is timed from the server start time, like the rest of the sequence
+		local elapsed = workspace:GetServerTimeNow() - data.StartTime
+		Leaderboard_Controller:Show(
+			data.Leaders,
+			JuiceConfig.Leaderboard.ShowAt - elapsed,
+			JuiceConfig.Leaderboard.HideAt - elapsed
+		)
 		task.spawn(play, data)
 	end)
 

@@ -30,7 +30,7 @@ local JuicePool_Service = Knit.CreateService({
 	},
 })
 
-local Plant_Service, PlantCycle_Service, Stats_Service
+local Plant_Service, PlantCycle_Service, Stats_Service, Watering_Service
 
 local pool -- { Model, Center, Radius, Multiplier } while a pool exists
 local activeCycle -- cycle id whose sequence is running / whose pool exists
@@ -353,6 +353,38 @@ local function payOut(dt)
 	end
 end
 
+---- Leaderboard
+
+--- The players who poured the most into this plant, best first. Ties are broken by user id, so the
+--- order is always the same. Computed here once, so every client shows identical results.
+local function buildLeaders(cycleId)
+	local entries, total = {}, 0
+	for userId, amount in pairs(Watering_Service:GetContributions(cycleId)) do
+		if amount > 0 then
+			total += amount
+			table.insert(entries, { UserId = userId, Raw = amount })
+		end
+	end
+	table.sort(entries, function(a, b)
+		if a.Raw ~= b.Raw then
+			return a.Raw > b.Raw
+		end
+		return a.UserId < b.UserId
+	end)
+
+	local leaders = {}
+	for rank = 1, math.min(#entries, JuiceConfig.Leaderboard.Size) do
+		local entry = entries[rank]
+		leaders[rank] = {
+			UserId = entry.UserId,
+			Name = Watering_Service:GetName(entry.UserId) or "Gardener",
+			Amount = math.floor(entry.Raw + 0.5),
+			Percent = math.floor(entry.Raw / total * 100 + 0.5),
+		}
+	end
+	return leaders
+end
+
 ---- The sequence
 
 local function runSequence(cycleId, plantId, model)
@@ -381,6 +413,7 @@ local function runSequence(cycleId, plantId, model)
 		RarityName = rarity.DisplayName,
 		Multiplier = multiplier,
 		Radius = radius,
+		Leaders = buildLeaders(cycleId),
 	})
 
 	-- 1. launch: lift and spin the plant
@@ -442,6 +475,7 @@ function JuicePool_Service:KnitStart()
 	Plant_Service = Knit.GetService("Plant_Service")
 	PlantCycle_Service = Knit.GetService("PlantCycle_Service")
 	Stats_Service = Knit.GetService("Stats_Service")
+	Watering_Service = Knit.GetService("Watering_Service")
 
 	PlantCycle_Service.PlantGrown:Connect(onPlantGrown)
 

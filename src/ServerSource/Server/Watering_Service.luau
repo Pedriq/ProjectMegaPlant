@@ -40,6 +40,7 @@ local prompt, bedPart
 local pendingPoints = 0
 local sinceFlush = 0
 local contributions = {} -- [cycleId] = { [userId] = water poured }
+local names = {} -- [userId] = username, remembered so the leaderboard can name players who already left
 local cycleTotals = {} -- [cycleId] = total water poured by everyone
 
 -- replication bookkeeping (see broadcastTotals)
@@ -116,6 +117,7 @@ local function startWatering(player)
 				contributions[state.CycleId] = cycle
 			end
 			cycle[player.UserId] = (cycle[player.UserId] or 0) + poured
+			names[player.UserId] = player.Name
 			cycleTotals[state.CycleId] = (cycleTotals[state.CycleId] or 0) + poured
 			dirtyTotal = true
 			dirtyPlayers[player] = true
@@ -135,6 +137,11 @@ end
 function Watering_Service:GetContribution(cycleId, player)
 	local cycle = contributions[cycleId]
 	return cycle and cycle[player.UserId] or 0
+end
+
+--- Username of a player who poured water (also after they left).
+function Watering_Service:GetName(userId)
+	return names[userId]
 end
 
 function Watering_Service:GetContributions(cycleId)

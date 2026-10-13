@@ -18,8 +18,8 @@ local JuiceConfig = {}
 
 ---- Timeline / camera
 JuiceConfig.Cinematic = {
-	LaunchTime = 3.2, -- seconds of lift-off
-	HoldTime = 0.9, -- seconds hovering before the explosion
+	LaunchTime = 4.2, -- seconds of lift-off
+	HoldTime = 1.2, -- seconds hovering before the explosion
 	OutroTime = 2.2, -- camera blend back to the player after the explosion
 	LiftBase = 10, -- studs the plant rises, plus LiftPerSize * its height
 	LiftPerSize = 0.8,
@@ -33,6 +33,13 @@ JuiceConfig.Cinematic = {
 
 JuiceConfig.ExplosionAt = JuiceConfig.Cinematic.LaunchTime + JuiceConfig.Cinematic.HoldTime
 JuiceConfig.TotalTime = JuiceConfig.ExplosionAt + JuiceConfig.Cinematic.OutroTime
+
+-- the "Top Gardeners" board is visible from ShowAt until HideAt seconds into the sequence
+JuiceConfig.Leaderboard = {
+	ShowAt = 0.9,
+	HideAt = JuiceConfig.TotalTime - 0.3,
+	Size = 3, -- how many places are shown
+}
 
 ---- Multiplier per rarity: { min, max }. A tiny plant gives the min, a plant of SizeRatioForMax+ gives the max.
 JuiceConfig.Multipliers = {
