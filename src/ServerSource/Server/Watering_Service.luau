@@ -33,7 +33,7 @@ local Watering_Service = Knit.CreateService({
 	PourStopped = Signal.new(),
 })
 
-local Water_Service, Plant_Service, PlantCycle_Service
+local Water_Service, Plant_Service, PlantCycle_Service, Upgrade_Service
 
 local sessions = HoldSessions.new()
 local prompt, bedPart
@@ -102,7 +102,9 @@ local function startWatering(player)
 
 		local state = PlantCycle_Service:GetState()
 		local plantId = state.PlantId
-		local poured = Water_Service:RemoveWater(player, can.PourRate * dt)
+		-- the Watering Speed upgrade is read every tick, so a purchase applies immediately
+		local pourRate = can.PourRate * Upgrade_Service:GetMultiplier(player, "PourSpeed")
+		local poured = Water_Service:RemoveWater(player, pourRate * dt)
 		if poured > 0 then
 			pendingPoints += poured
 				* PlantsConfig.Growth.PointsPerWater
@@ -215,6 +217,7 @@ function Watering_Service:KnitStart()
 	Water_Service = Knit.GetService("Water_Service")
 	Plant_Service = Knit.GetService("Plant_Service")
 	PlantCycle_Service = Knit.GetService("PlantCycle_Service")
+	Upgrade_Service = Knit.GetService("Upgrade_Service")
 
 
 	-- apply accumulated growth in batches instead of once per player per frame

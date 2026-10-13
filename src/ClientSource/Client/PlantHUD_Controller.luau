@@ -5,6 +5,7 @@ local RunService = game:GetService("RunService")
 local Knit = require(ReplicatedStorage.Packages.Knit)
 local Vide = require(ReplicatedStorage.Packages.Vide)
 local PlantsConfig = require(ReplicatedStorage.SharedSource.Datas.PlantsConfig)
+local WaterConfig = require(ReplicatedStorage.SharedSource.Datas.WaterConfig)
 local Plastic = require(ReplicatedStorage.ClientSource.UI.Plastic)
 local PlantIcon = require(ReplicatedStorage.ClientSource.UI.PlantIcon)
 local Anim = require(ReplicatedStorage.ClientSource.UI.Anim)
@@ -57,7 +58,9 @@ local function StatPill(props)
 	})
 end
 
-local function PlantHUD(cycle, now, shimmer, popTarget, totals)
+local BAR_POSITION = Vector2.new(0.24, 0.37)
+
+local function PlantHUD(cycle, now, shimmer, popTarget, totals, shake)
 	local popScale = Vide.spring(popTarget, 0.35, 0.5)
 
 	-- water numbers count up smoothly instead of jumping
@@ -230,7 +233,14 @@ local function PlantHUD(cycle, now, shimmer, popTarget, totals)
 					Plastic.Bar({
 						Name = "Progress",
 						AnchorPoint = Vector2.new(0, 0),
-						Position = UDim2.fromScale(0.24, 0.37),
+						-- the bar only moves while the local player is watering (see shake in KnitStart)
+						Position = function()
+							local offset = shake.Offset()
+							return UDim2.fromScale(BAR_POSITION.X + offset.X, BAR_POSITION.Y + offset.Y)
+						end,
+						Rotation = function()
+							return shake.Rotation()
+						end,
 						Size = UDim2.fromScale(0.73, 0.27),
 						Progress = progress,
 						Shimmer = shimmer,
@@ -292,23 +302,40 @@ function PlantHUD_Controller:KnitStart()
 	local shimmer = source(-1)
 	local popTarget = source(1)
 
-	-- once per frame: timer text + shimmer position
-	RunService.RenderStepped:Connect(function()
+	-- The progress bar shakes and shimmers ONLY while the local player is pouring water on the plant;
+	-- otherwise it is perfectly still.
+	local shake = { Offset = source(Vector2.zero), Rotation = source(0) }
+	local intensity = 0
+	local wateringAttribute = WaterConfig.Attributes.Watering
+
+	RunService.RenderStepped:Connect(function(dt)
+		local watering = player:GetAttribute(wateringAttribute) == true
+
+		-- eases in and out, so it starts and stops smoothly
+		intensity += ((watering and 1 or 0) - intensity) * (1 - math.exp(-14 * dt))
+		if not watering and intensity < 0.003 then
+			intensity = 0
+		end
+
+		local t = os.clock()
 		Vide.batch(function()
 			now(workspace:GetServerTimeNow())
-			shimmer((os.clock() * 0.6 % 2) - 1)
+
+			if intensity > 0 then
+				local nx = math.sin(t * 47) + math.sin(t * 31.7 + 1.3) * 0.7
+				local ny = math.sin(t * 53 + 2.1) + math.sin(t * 37.3) * 0.7
+				shake.Offset(Vector2.new(nx * 0.0035 * intensity, ny * 0.006 * intensity))
+				shake.Rotation(math.sin(t * 41) * 1.1 * intensity)
+				shimmer((t * 0.9 % 2) - 1)
+			else
+				shake.Offset(Vector2.zero)
+				shake.Rotation(0)
+				shimmer(-1) -- stripe parked off the bar
+			end
 		end)
 	end)
 
 	-- bounce the panel whenever a new plant shows up
-	-- the water boost just shortened the timer: small bump so players notice their effect
-	PlantCycle_Controller.TimerChanged:Connect(function()
-		popTarget(1.07)
-		task.delay(0.12, function()
-			popTarget(1)
-		end)
-	end)
-
 	PlantCycle_Controller.StateChanged:Connect(function(state)
 		if state.Phase == "Growing" then
 			popTarget(1.12)
@@ -319,7 +346,7 @@ function PlantHUD_Controller:KnitStart()
 	end)
 
 	Vide.mount(function()
-		return PlantHUD(cycle, now, shimmer, popTarget, totals)
+		return PlantHUD(cycle, now, shimmer, popTarget, totals, shake)
 	end, player:WaitForChild("PlayerGui"))
 end
 

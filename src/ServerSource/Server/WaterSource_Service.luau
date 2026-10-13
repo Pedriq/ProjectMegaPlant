@@ -18,7 +18,7 @@ local WaterSource_Service = Knit.CreateService({
 	Client = {},
 })
 
-local Water_Service
+local Water_Service, Upgrade_Service
 local sessions = HoldSessions.new()
 
 local function resolvePath(path)
@@ -56,14 +56,15 @@ local function startFilling(player, part, source)
 	end
 
 	local can = Water_Service:GetCan(player)
-	local rate = can.FillRate * (source.FillMultiplier or 1)
+	local baseRate = can.FillRate * (source.FillMultiplier or 1)
 
 	player:SetAttribute(ATTR.Filling, true)
 	sessions:Start(player, function(dt)
 		if not isInRange(player, part, source.MaxActivationDistance) then
 			return false
 		end
-		Water_Service:AddWater(player, rate * dt)
+		-- the Water Collection Speed upgrade is read every tick, so a purchase applies immediately
+		Water_Service:AddWater(player, baseRate * Upgrade_Service:GetMultiplier(player, "FillSpeed") * dt)
 		return not Water_Service:IsFull(player)
 	end, function()
 		player:SetAttribute(ATTR.Filling, false)
@@ -101,6 +102,7 @@ end
 
 function WaterSource_Service:KnitStart()
 	Water_Service = Knit.GetService("Water_Service")
+	Upgrade_Service = Knit.GetService("Upgrade_Service")
 
 	Players.PlayerRemoving:Connect(function(player)
 		sessions:Stop(player)

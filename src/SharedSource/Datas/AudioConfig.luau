@@ -41,6 +41,11 @@ AudioConfig.Sounds = {
 	FullyGrown = { Id = BUILTIN .. "impact_explosion_03.mp3", Volume = 0.5, Pitch = 1.2 },
 	Harvest = { Id = BUILTIN .. "action_jump.mp3", Volume = 0.9, Pitch = 2.1 },
 
+	---- Shop
+	ShopOpen = { Id = BUILTIN .. "action_get_up.mp3", Volume = 0.6, Pitch = 1.2 },
+	Purchase = { Id = BUILTIN .. "action_jump.mp3", Volume = 0.85, Pitch = 1.9 },
+	PurchaseFail = { Id = BUILTIN .. "volume_slider.ogg", Volume = 0.6, Pitch = 0.55 },
+
 	---- Progression
 	TrainTick = { Id = BUILTIN .. "volume_slider.ogg", Volume = 0.45, Pitch = 0.8 },
 	CapacityUp = { Id = BUILTIN .. "action_jump.mp3", Volume = 0.9, Pitch = 1.9 },

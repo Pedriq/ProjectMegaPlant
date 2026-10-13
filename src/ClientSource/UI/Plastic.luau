@@ -181,6 +181,7 @@ function Plastic.Bar(props)
 		AnchorPoint = props.AnchorPoint,
 		Position = props.Position,
 		Size = props.Size,
+		Rotation = props.Rotation,
 		BackgroundColor3 = Plastic.Colors.TrackBorder,
 		BorderSizePixel = 0,
 
