@@ -21,6 +21,9 @@ local ProfileService = Knit.CreateService({
 	},
 
 	UpdateSpecificData = Signal.new(),
+
+	-- Fired (player) once a player's profile is loaded and stored in Profiles
+	ProfileLoaded = Signal.new(),
 })
 
 local ActualProfileStore =
@@ -34,7 +37,7 @@ ProfileService.Profiles = Profiles
 
 local function DataSuccessfullyLoaded(player)
 	-- Called when a profile is successfully loaded
-	-- Add any post-load logic here
+	ProfileService.ProfileLoaded:Fire(player)
 end
 
 local function HandlePlayerAdded(player)
