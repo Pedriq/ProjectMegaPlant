@@ -57,10 +57,15 @@ PlantsConfig.Selection = {
 PlantsConfig.Growth = {
 	SeedlingScale = 0.28,
 	PointsPerWater = 1, -- base growth points per unit of water (the plant's goal normalises it, see GetGrowthMultiplier)
-	-- size ratio at the water goal = 1 + (PointsAtGoal * Coefficient) ^ Exponent = 1 + (1000 * 0.06) ^ 0.55 ~ 10.5
-	-- (it keeps growing past the goal: ~21x at 5x the goal, ~33x at 10x)
+	-- size ratio at the water goal = 1 + (PointsAtGoal * Coefficient) ^ Exponent = 1 + (1200 * 0.06) ^ 0.55 ~ 11.5
+	-- = almost the juice maximum. Growth never stops: past the goal it only slows down (SlowdownRate),
+	-- and the juice maximum (ratio 12) is reached at roughly 1.1x the goal water.
 	Coefficient = 0.06,
 	Exponent = 0.55,
+	-- points beyond the water goal count only this fraction (0-1, never 0: the plant always keeps growing)
+	SlowdownRate = 0.7,
+	-- makes the model physically bigger without touching juice / weight (those use the plain ratio above)
+	VisualSizeBoost = 1.6,
 	-- the size animation is stepped at StepRate Hz (not every frame): every step of a big model is replicated
 	-- to up to 100 clients, so a lower rate saves a lot of bandwidth while the eased steps still look smooth
 	StepRate = 15,
@@ -191,13 +196,17 @@ function PlantsConfig.GetGrowTime(plantId)
 	return PlantsConfig.GetBaseGrowTime(plantId)
 end
 
+-- Total water that makes a plant fully grown. At this water the plant is ~10.5x its seedling size (size factor
+-- ~0.95), so its juice multiplier lands well above the midpoint of the rarity range (JuiceConfig.Multipliers).
+PlantsConfig.DefaultWaterGoal = 170500
+
 --- Total water (all players together) that fully boosts the plant. Unless the plant / rarity sets
 --- WaterGoal explicitly it is derived from the reference population (see BalanceConfig):
 --- 100 players * 60% active * 1.5 water/s * grow time * 0.6.
 function PlantsConfig.GetWaterGoal(plantId)
 	local plant = PlantsConfig.Plants[plantId]
 	local rarity = PlantsConfig.GetRarity(plantId)
-	local explicit = plant and (plant.WaterGoal or (rarity and rarity.WaterGoal))
+	local explicit = plant and (plant.WaterGoal or (rarity and rarity.WaterGoal)) or PlantsConfig.DefaultWaterGoal
 	if explicit then
 		return explicit
 	end

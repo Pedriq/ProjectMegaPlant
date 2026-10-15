@@ -88,7 +88,8 @@ BalanceConfig.Goal = {
 
 -- Growth points are normalised per plant: reaching the water goal always gives PointsAtGoal points, so the
 -- plant has the same size at its goal whatever its rarity (the size curve itself is in PlantsConfig.Growth).
-BalanceConfig.PointsAtGoal = 1000
+-- 1200 points = size ratio ~11.5, close to the top of the juice range (JuiceConfig.SizeRatioForMax = 12).
+BalanceConfig.PointsAtGoal = 1200
 
 ---- Upgrade curves (see UpgradesConfig)
 -- speed multiplier(level) = 1 + Bonus * (1 - e^(-level / Scale)) + Tail * level

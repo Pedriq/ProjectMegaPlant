@@ -392,7 +392,7 @@ local function runSequence(cycleId, plantId, model)
 	local bedTop = model:GetAttribute("BedTop") or model:GetPivot().Position
 	local extents = model:GetExtentsSize()
 	local points = Plant_Service:GetGrowthPoints()
-	local sizeRatio = PlantGrowth.GetScale(points) / PlantGrowth.GetScale(0)
+	local sizeRatio = PlantGrowth.GetSizeRatio(points)
 	local rarityKey = PlantsConfig.GetPlant(plantId).Rarity
 	local rarity = PlantsConfig.GetRarity(plantId)
 	local multiplier = JuiceConfig.GetMultiplier(rarityKey, sizeRatio)
