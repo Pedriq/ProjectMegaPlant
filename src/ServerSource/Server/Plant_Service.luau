@@ -84,9 +84,21 @@ end
 local function prepareModel(model)
 	for _, descendant in ipairs(model:GetDescendants()) do
 		if descendant:IsA("BasePart") then
+			-- a model is a rigid group of parts: freeze all of them, and keep them out of physics / raycasts
 			descendant.Anchored = true
 			descendant.CanCollide = false
+			descendant.CanTouch = false
+			descendant.CanQuery = false
+			descendant.Massless = true
+		elseif descendant:IsA("BaseScript") or descendant:IsA("Humanoid") then
+			-- scripts / humanoids inside a fruit model would act on their own (or fight the scaling)
+			descendant:Destroy()
 		end
+	end
+	-- models made in Studio often have no PrimaryPart; the pivot (or the bounding box) is used instead,
+	-- but give it one so tools that read PrimaryPart work too
+	if not model.PrimaryPart then
+		model.PrimaryPart = model:FindFirstChildWhichIsA("BasePart", true)
 	end
 end
 
