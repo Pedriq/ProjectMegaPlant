@@ -28,10 +28,27 @@ function PlantGrowth.GetSizeRatio(points)
 	return getRatio(points)
 end
 
---- Visual scale of the model: the growth part is multiplied by Growth.VisualSizeBoost (the seedling is unchanged).
-function PlantGrowth.GetScale(points)
+--- Visual growth (0 = seedling) of the model: strictly proportional to the points up to the full-growth point
+--- (BalanceConfig.PointsAtGoal = 175,000 water), reaching Growth.VisualGrowthAtFull there. Beyond it the slope
+--- starts at SlowdownRate of the proportional slope and keeps shrinking (logarithmic), but never reaches zero.
+local function getVisualGrowth(points)
 	local growth = PlantsConfig.Growth
-	return growth.SeedlingScale * (1 + (getRatio(points) - 1) * growth.VisualSizeBoost)
+	points = math.max(points, 0)
+	local fullPoints = BalanceConfig.PointsAtGoal
+	local slope = growth.VisualGrowthAtFull / fullPoints
+	if points <= fullPoints then
+		return slope * points
+	end
+	local excess = points - fullPoints
+	-- slope(excess) = slope * SlowdownRate * (1 + excess / fullPoints) ^ -TailDecay: a gentle, endless decay
+	local keep = 1 - growth.TailDecay
+	return growth.VisualGrowthAtFull
+		+ slope * growth.SlowdownRate * fullPoints * ((1 + excess / fullPoints) ^ keep - 1) / keep
+end
+
+--- Visual scale of the model (the seedling has SeedlingScale).
+function PlantGrowth.GetScale(points)
+	return PlantsConfig.Growth.SeedlingScale * (1 + getVisualGrowth(points))
 end
 
 --- Abstract weight (kg) of a plant after the given growth points. A fresh plant weighs its base weight and

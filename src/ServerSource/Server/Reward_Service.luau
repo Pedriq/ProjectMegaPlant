@@ -122,7 +122,7 @@ local function checkGoal()
 	end
 	local fraction = total / goal
 
-	PlantCycle_Service:SetBoost(fraction)
+	-- NOTE: the grow timer is static; water never shortens it (stages below still use the goal fraction)
 
 	while stageIndex < #RewardConfig.Stages do
 		local stage = RewardConfig.Stages[stageIndex + 1]

@@ -10,7 +10,7 @@
 	The pool is an upgrade zone: while a player stands in it, EVERY stat in Pool.Stats grows at
 	TrainingConfig.BaseGainPerSecond * multiplier per second. The multiplier depends on the plant:
 	  rarity -> a { min, max } range (Multipliers)
-	  size   -> where inside that range it lands (0 = the plant never grew, 1 = SizeRatioForMax or bigger)
+	  size   -> where inside that range it lands (0 = the plant never grew, approaches 1 without ever reaching it)
 	The pool stays until the next plant is selected.
 ]]
 
@@ -41,7 +41,7 @@ JuiceConfig.Leaderboard = {
 	Size = 3, -- how many places are shown
 }
 
----- Multiplier per rarity: { min, max }. A tiny plant gives the min, a plant of SizeRatioForMax+ gives the max.
+---- Multiplier per rarity: { min, max }. A tiny plant gives the min, an ever bigger plant approaches the max.
 JuiceConfig.Multipliers = {
 	Common = { 1.5, 2.5 },
 	Uncommon = { 2, 4 },
@@ -50,8 +50,11 @@ JuiceConfig.Multipliers = {
 	Legendary = { 8, 16 },
 	Mythic = { 12, 25 },
 }
--- size = scale / seedling scale at the end of the growth (see PlantGrowth); this ratio counts as "fully huge"
-JuiceConfig.SizeRatioForMax = 12
+-- size = growth ratio of the plant when its timer expires (see PlantGrowth.GetSizeRatio)
+-- Size factor = g / (g + SizeRatioHalfPoint), g = sizeRatio - 1. It never reaches 1, so there is no size cap.
+-- 2.625 puts the plant at 80% of its range at 175K water (size ratio 11.5): x5.2 in an x2-x6 range.
+-- Past 175K the plant keeps growing (slower) and the factor keeps closing in on the maximum.
+JuiceConfig.SizeRatioHalfPoint = 2.625
 -- the weakest / strongest multiplier in the table above, used to scale the visuals (glow, particles)
 JuiceConfig.VisualMin = 1.5
 JuiceConfig.VisualMax = 16
@@ -82,7 +85,9 @@ JuiceConfig.BoostAttribute = "JuiceBoost"
 
 --- 0..1: how big the plant ended up.
 function JuiceConfig.GetSizeFactor(sizeRatio)
-	return math.clamp((sizeRatio - 1) / (JuiceConfig.SizeRatioForMax - 1), 0, 1)
+	-- asymptotic: no size ever hits a ceiling, the factor only creeps closer to 1 (the rarity's max multiplier)
+	local growth = math.max(sizeRatio - 1, 0)
+	return growth / (growth + JuiceConfig.SizeRatioHalfPoint)
 end
 
 --- Multiplier of the pool for a rarity key ("Common"...) and the plant's size ratio. Rounded to 0.1.

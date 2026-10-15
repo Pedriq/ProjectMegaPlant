@@ -5,7 +5,6 @@ local Knit = require(ReplicatedStorage.Packages.Knit)
 local Signal = require(ReplicatedStorage.Packages.Signal)
 local PlantsConfig = require(ReplicatedStorage.SharedSource.Datas.PlantsConfig)
 local PlantSelector = require(ReplicatedStorage.SharedSource.Utilities.PlantSelector)
-local RewardConfig = require(ReplicatedStorage.SharedSource.Datas.RewardConfig)
 
 --[[
 	The growing cycle:
@@ -33,6 +32,7 @@ local PlantCycle_Service = Knit.CreateService({
 })
 
 local Plant_Service
+local Watering_Service
 
 local random = Random.new()
 local skipRequested = false
@@ -45,14 +45,15 @@ local state = {
 	PhaseEnd = 0,
 }
 
-local function beginPhase(phase, plantId, duration)
+-- `elapsed` (optional) pretends the phase began that many seconds ago (the first plant looks already grown for a while)
+local function beginPhase(phase, plantId, duration, newCycle, elapsed)
 	local now = workspace:GetServerTimeNow()
 	state = {
 		Phase = phase,
-		CycleId = state.CycleId + (phase == "Selecting" and 1 or 0),
+		CycleId = state.CycleId + ((phase == "Selecting" or newCycle) and 1 or 0),
 		PlantId = plantId,
-		PhaseStart = now,
-		PhaseEnd = now + duration,
+		PhaseStart = now - (elapsed or 0),
+		PhaseEnd = now + duration - (elapsed or 0),
 	}
 	PlantCycle_Service.PhaseChanged:Fire(state)
 	PlantCycle_Service.Client.StateChanged:FireAll(state)
@@ -67,16 +68,33 @@ end
 
 local function runCycle()
 	local selection = PlantsConfig.Selection
-
-	-- 1. Selecting
 	local plantId = PlantSelector.Roll(random)
+	local plantConfig = PlantsConfig
 	Plant_Service:Clear()
-	beginPhase("Selecting", plantId, selection.ScrollTime + selection.RevealTime)
-	waitForPhaseEnd()
 
-	-- 2. Growing
-	Plant_Service:Spawn(plantId)
-	beginPhase("Growing", plantId, PlantsConfig.GetGrowTime(plantId))
+	if state.CycleId == 0 then
+		-- the very first plant of the server: already selected and partially grown, no carousel
+		local range = plantConfig.Cycle.FirstPlantWater
+		local water = math.floor(range.Min + random:NextNumber() * (range.Max - range.Min))
+
+		Plant_Service:Spawn(plantId)
+		-- points use the full-server goal, so the head start does not depend on how many players are online
+		Plant_Service:SetGrowthPoints(water * plantConfig.Growth.PointsPerWater * plantConfig.GetGrowthMultiplier(plantId))
+		-- the timer looks like the plant has already been growing for about half of its time
+		local growTime = PlantsConfig.GetGrowTime(plantId)
+		local elapsedRange = plantConfig.Cycle.FirstPlantElapsed
+		local elapsed = growTime * (elapsedRange.Min + random:NextNumber() * (elapsedRange.Max - elapsedRange.Min))
+		beginPhase("Growing", plantId, growTime, true, elapsed)
+		Watering_Service:SeedTotalWater(state.CycleId, water)
+	else
+		-- 1. Selecting
+		beginPhase("Selecting", plantId, selection.ScrollTime + selection.RevealTime)
+		waitForPhaseEnd()
+
+		-- 2. Growing
+		Plant_Service:Spawn(plantId)
+		beginPhase("Growing", plantId, PlantsConfig.GetGrowTime(plantId))
+	end
 	waitForPhaseEnd()
 
 	-- 3. Finished (reward hook)
@@ -93,27 +111,6 @@ function PlantCycle_Service:GetState()
 	return state
 end
 
---- Shortens the current Growing phase according to how close the server is to the plant's water
---- goal (boost 0-1). The timer only ever gets shorter, and is re-sent only on noticeable changes.
-function PlantCycle_Service:SetBoost(boost)
-	if state.Phase ~= "Growing" then
-		return
-	end
-	boost = math.clamp(boost, 0, 1)
-	local baseDuration = PlantsConfig.GetGrowTime(state.PlantId)
-	local newEnd = state.PhaseStart + baseDuration * (1 - RewardConfig.Boost.MaxFraction * boost)
-	newEnd = math.max(newEnd, workspace:GetServerTimeNow() + 1)
-
-	if state.PhaseEnd - newEnd < RewardConfig.Boost.MinSecondsChange then
-		return
-	end
-
-	local updated = table.clone(state)
-	updated.PhaseEnd = newEnd
-	state = updated
-	PlantCycle_Service.Client.StateChanged:FireAll(state)
-end
-
 --- Testing helper: jumps to the end of the current phase.
 function PlantCycle_Service:ForceNextPhase()
 	skipRequested = true
@@ -125,6 +122,7 @@ end
 
 function PlantCycle_Service:KnitStart()
 	Plant_Service = Knit.GetService("Plant_Service")
+	Watering_Service = Knit.GetService("Watering_Service")
 
 	task.spawn(function()
 		if #Players:GetPlayers() == 0 then

@@ -7,7 +7,6 @@ local Signal = require(ReplicatedStorage.Packages.Signal)
 local WaterConfig = require(ReplicatedStorage.SharedSource.Datas.WaterConfig)
 local PlantsConfig = require(ReplicatedStorage.SharedSource.Datas.PlantsConfig)
 local HoldSessions = require(ServerScriptService.ServerSource.Utilities.HoldSessions)
-local PlantGoal = require(ServerScriptService.ServerSource.Utilities.PlantGoal)
 
 local ATTR = WaterConfig.Attributes
 
@@ -110,7 +109,7 @@ local function startWatering(player)
 		if poured > 0 then
 			pendingPoints += poured
 				* PlantsConfig.Growth.PointsPerWater
-				* PlantsConfig.GetGrowthMultiplier(plantId, PlantGoal.GetGoal(plantId, state.CycleId))
+				* PlantsConfig.GetGrowthMultiplier(plantId)
 
 			local cycle = contributions[state.CycleId]
 			if not cycle then
@@ -152,6 +151,13 @@ end
 --- Total water poured by everyone into the plant of a cycle.
 function Watering_Service:GetTotalWater(cycleId)
 	return cycleTotals[cycleId] or 0
+end
+
+--- Sets the starting water of a cycle (the head start of the first plant). It only shows in the total: nobody is
+--- credited for it, so contributions, rewards and the timer boost are unaffected.
+function Watering_Service:SeedTotalWater(cycleId, water)
+	cycleTotals[cycleId] = water
+	dirtyTotal = true
 end
 
 --- Current totals for a joining client (later changes arrive through the signals).

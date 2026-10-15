@@ -41,6 +41,12 @@ PlantsConfig.PlantTag = "GardenPlant" -- CollectionService tag on the plant mode
 PlantsConfig.Cycle = {
 	FinishedDuration = BalanceConfig.Cycle.FinishedDuration, -- seconds between "fully grown" and the next plant being selected
 	FirstCycleDelay = 2, -- seconds after the first player joins before the first selection
+	-- The first plant of a server skips the carousel and is already partially grown: it starts with a random
+	-- amount of water between Min and Max (units of water). Later plants start at 0.
+	-- It shows in the HUD water total, sets the plant's weight and its size.
+	FirstPlantWater = { Min = 85000, Max = 100000 },
+	-- fraction of the grow time that already "passed" for the first plant (0.5 = halfway through its timer)
+	FirstPlantElapsed = { Min = 0.45, Max = 0.55 },
 }
 
 ---- Selection animation (shared so the server phase length matches the client animation)
@@ -57,15 +63,22 @@ PlantsConfig.Selection = {
 PlantsConfig.Growth = {
 	SeedlingScale = 0.28,
 	PointsPerWater = 1, -- base growth points per unit of water (the plant's goal normalises it, see GetGrowthMultiplier)
-	-- size ratio at the water goal = 1 + (PointsAtGoal * Coefficient) ^ Exponent = 1 + (1200 * 0.06) ^ 0.55 ~ 11.5
-	-- = almost the juice maximum. Growth never stops: past the goal it only slows down (SlowdownRate),
-	-- and the juice maximum (ratio 12) is reached at roughly 1.1x the goal water.
-	Coefficient = 0.06,
-	Exponent = 0.55,
+	-- size ratio at the water goal = 1 + (PointsAtGoal * Coefficient) ^ Exponent = 1 + (1200 * 0.305) ^ 0.4 ~ 11.5
+	-- = 80% of the juice range. Growth never stops: past the goal it only slows down (SlowdownRate),
+	-- and the juice multiplier keeps closing in on the maximum without ever reaching it.
+	-- (retuned: a lower exponent flattens the curve at high water, so 75K vs 100K differ by ~12% in size
+	-- instead of ~15%; Coefficient is matched so the size at the goal stays ~11.5)
+	Coefficient = 0.305,
+	Exponent = 0.4,
 	-- points beyond the water goal count only this fraction (0-1, never 0: the plant always keeps growing)
-	SlowdownRate = 0.7,
-	-- makes the model physically bigger without touching juice / weight (those use the plain ratio above)
-	VisualSizeBoost = 1.6,
+	SlowdownRate = 0.98,
+	-- how fast the growth rate keeps fading past the goal (0 = constant, 1 = very fast / logarithmic). Never reaches 0 growth.
+	TailDecay = 0.06,
+	-- The model's size grows strictly proportionally with water up to FullGrowthWater, where it is
+	-- (1 + VisualGrowthAtFull)x the seedling; past that it keeps growing, slower and slower. Juice and weight
+	-- use the ratio curve above instead, so this does not change the economy.
+	VisualGrowthAtFull = 80, -- (1 + 80) = 81x the seedling at 175K, 1.5x the previous 54x
+	FullGrowthWater = 175000,
 	-- the size animation is stepped at StepRate Hz (not every frame): every step of a big model is replicated
 	-- to up to 100 clients, so a lower rate saves a lot of bandwidth while the eased steps still look smooth
 	StepRate = 15,
@@ -222,11 +235,12 @@ end
 --- Growth points per unit of water. Normalised by the goal: reaching the water goal always yields
 --- BalanceConfig.PointsAtGoal points, so every plant has the same size at its own goal.
 --- `goal` is the water goal of this particular cycle (defaults to the full-server goal).
-function PlantsConfig.GetGrowthMultiplier(plantId, goal)
+function PlantsConfig.GetGrowthMultiplier(plantId)
 	local plant = PlantsConfig.Plants[plantId]
 	local rarity = PlantsConfig.GetRarity(plantId)
 	local multiplier = plant and (plant.GrowthMultiplier or (rarity and rarity.GrowthMultiplier)) or 1
-	return multiplier * BalanceConfig.PointsAtGoal / math.max(goal or PlantsConfig.GetWaterGoal(plantId), 1)
+	-- a fixed water -> points relation (independent of player count / difficulty): FullGrowthWater = PointsAtGoal
+	return multiplier * BalanceConfig.PointsAtGoal / PlantsConfig.Growth.FullGrowthWater
 end
 
 function PlantsConfig.GetBaseWeight(plantId)
