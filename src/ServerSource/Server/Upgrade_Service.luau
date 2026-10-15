@@ -119,6 +119,21 @@ function Upgrade_Service:Purchase(player, upgradeId)
 	return { Success = true, Level = newLevel }
 end
 
+--- DEBUG: sets an upgrade to an exact level without paying (see DebugCommands_Service). Returns the level.
+function Upgrade_Service:DebugSetLevel(player, upgradeId, level)
+	if not UpgradesConfig.Upgrades[upgradeId] or typeof(level) ~= "number" or level ~= level then
+		return nil
+	end
+	if not getUpgradesData(player) then
+		return nil
+	end
+	level = math.max(math.floor(level), 0)
+	ProfileService:ChangeData(player, { "Upgrades", upgradeId }, level)
+	publish(player, upgradeId, level)
+	Upgrade_Service.UpgradeChanged:Fire(player, upgradeId, level)
+	return level
+end
+
 function Upgrade_Service.Client:Purchase(player, upgradeId)
 	return Upgrade_Service:Purchase(player, upgradeId)
 end

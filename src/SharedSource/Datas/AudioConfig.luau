@@ -27,6 +27,7 @@ AudioConfig.Sounds = {
 	RevealRare = { Id = BUILTIN .. "action_jump.mp3", Volume = 0.7, Pitch = 1.5 },
 	RevealEpic = { Id = BUILTIN .. "action_jump_land.mp3", Volume = 0.8, Pitch = 1.4 },
 	RevealLegendary = { Id = BUILTIN .. "impact_explosion_03.mp3", Volume = 0.55, Pitch = 1.5 },
+	RevealMythic = { Id = BUILTIN .. "impact_explosion_03.mp3", Volume = 0.7, Pitch = 1.1 },
 
 	---- Water collection
 	FillTick = { Id = BUILTIN .. "volume_slider.ogg", Volume = 0.4, Pitch = 1 }, -- pitch rises with the fill level

@@ -49,10 +49,26 @@ function Water_Service:SetWater(player, amount)
 		return nil
 	end
 	local old = water[player]
-	local new = math.clamp(amount, 0, Water_Service:GetCapacity(player))
+	-- never above the capacity, except that spending water above it (the debug grant) must not snap it back
+	local limit = amount < old and math.max(Water_Service:GetCapacity(player), old) or Water_Service:GetCapacity(player)
+	local new = math.clamp(amount, 0, limit)
 	if new == old then
 		return new
 	end
+	water[player] = new
+	publish(player)
+	Water_Service.WaterChanged:Fire(player, new, old)
+	return new
+end
+
+--- DEBUG: sets the water amount WITHOUT the capacity clamp (see DebugCommands_Service).
+--- Capacity applies again the next time the amount changes through SetWater.
+function Water_Service:DebugSetWater(player, amount)
+	local old = water[player]
+	if old == nil or typeof(amount) ~= "number" or amount ~= amount then
+		return nil
+	end
+	local new = math.max(amount, 0)
 	water[player] = new
 	publish(player)
 	Water_Service.WaterChanged:Fire(player, new, old)

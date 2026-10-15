@@ -55,12 +55,16 @@ PlantsConfig.Selection = {
 ---- Plant growth through watering (the larger the plant, the slower it grows)
 -- scale = SeedlingScale * (1 + (points * Coefficient) ^ Exponent), Exponent < 1 => diminishing growth
 PlantsConfig.Growth = {
-	SeedlingScale = 0.2,
+	SeedlingScale = 0.28,
 	PointsPerWater = 1, -- base growth points per unit of water (the plant's goal normalises it, see GetGrowthMultiplier)
-	-- size ratio at the water goal = 1 + (PointsAtGoal * Coefficient) ^ Exponent = 1 + (1000 * 0.049) ^ 0.5 = 8
-	Coefficient = 0.049,
-	Exponent = 0.5,
-	TweenTime = 0.6,
+	-- size ratio at the water goal = 1 + (PointsAtGoal * Coefficient) ^ Exponent = 1 + (1000 * 0.06) ^ 0.55 ~ 10.5
+	-- (it keeps growing past the goal: ~21x at 5x the goal, ~33x at 10x)
+	Coefficient = 0.06,
+	Exponent = 0.55,
+	-- the size animation is stepped at StepRate Hz (not every frame): every step of a big model is replicated
+	-- to up to 100 clients, so a lower rate saves a lot of bandwidth while the eased steps still look smooth
+	StepRate = 15,
+	TweenTime = 0.4,
 }
 
 ---- Rarities
@@ -110,27 +114,36 @@ PlantsConfig.Rarities = {
 		Color = Color3.fromRGB(255, 196, 56),
 		DarkColor = Color3.fromRGB(176, 104, 18),
 	},
+	Mythic = {
+		Order = 6,
+		DisplayName = "Mythic",
+		Weight = 0.4,
+		GrowthMultiplier = 1,
+		BaseWeight = BalanceConfig.BaseWeight.Mythic,
+		Color = Color3.fromRGB(255, 84, 120),
+		DarkColor = Color3.fromRGB(140, 24, 64),
+	},
 }
 
 ---- Plants
 PlantsConfig.Plants = {
-	Banana = { Rarity = "Common" },
 	Orange = { Rarity = "Common" },
-	RedApple = { DisplayName = "Red Apple", Rarity = "Common" },
-	GreenApple = { DisplayName = "Green Apple", Rarity = "Common" },
 	Tomato = { Rarity = "Common" },
+	Strawberry = { Rarity = "Common" },
 
-	GreenGrape = { DisplayName = "Green Grape", Rarity = "Uncommon" },
-	PurpleGrape = { DisplayName = "Purple Grape", Rarity = "Uncommon" },
-	Pepper = { Rarity = "Uncommon" },
+	Blueberry = { Rarity = "Rare" },
+	Peach = { Rarity = "Rare" },
+	Mango = { Rarity = "Rare" },
 
-	Raspberry = { Rarity = "Rare" },
-	DragonFruit = { DisplayName = "Dragon Fruit", Rarity = "Rare" },
+	Melon = { Rarity = "Epic" },
+	Watermelon = { Rarity = "Epic" },
+	Pomegranate = { Rarity = "Epic" },
 
-	FurryFruit = { DisplayName = "Furry Fruit", Rarity = "Epic" },
-	FireFlower = { DisplayName = "Fire Flower", Rarity = "Epic" },
+	DragonFruit = { DisplayName = "Dragon Fruit", Rarity = "Legendary" },
+	MoonGrapes = { DisplayName = "Moon Grapes", Rarity = "Legendary" },
 
-	GoldenApple = { DisplayName = "Golden Apple", Rarity = "Legendary" },
+	CosmicPear = { DisplayName = "Cosmic Pear", Rarity = "Mythic" },
+	CrystalPineapple = { DisplayName = "Crystal Pineapple", Rarity = "Mythic" },
 }
 
 ---- Accessors (use these instead of reading the tables directly)

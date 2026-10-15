@@ -1,5 +1,6 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CollectionService = game:GetService("CollectionService")
+local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local Knit = require(ReplicatedStorage.Packages.Knit)
@@ -18,7 +19,8 @@ local Plant_Service = Knit.CreateService({
 local currentModel -- Model currently in the world
 local currentPlantId
 local growthPoints = 0
-local scaleTween, scaleValue
+local stepConnection -- Heartbeat connection of the running size animation (nil when idle)
+local bottomOffset -- bottom center of the current model, in its pivot space at scale 1
 
 ---- Plant bed
 
@@ -89,40 +91,59 @@ local function prepareModel(model)
 end
 
 --- Scales the model and keeps its bottom centered on the bed's top surface.
+-- The bounding box is measured ONCE per plant (the model scales linearly around its pivot), after that the
+-- placement is plain arithmetic: no GetBoundingBox / extra property writes on every size step.
 local function applyScale(model, bedTop, scale)
+	if not bottomOffset then
+		-- measured at the model's untouched size (before the first ScaleTo): at tiny scales Roblox clamps small
+		-- parts to a minimum size, the box stops being proportional and the base would drift as the plant grows
+		local cframe, size = model:GetBoundingBox()
+		local bottom = Vector3.new(cframe.Position.X, cframe.Position.Y - size.Y / 2, cframe.Position.Z)
+		bottomOffset = model:GetPivot():PointToObjectSpace(bottom) / model:GetScale() -- bottom center, scale 1
+	end
 	model:ScaleTo(math.max(scale, 0.001))
-	local cframe, size = model:GetBoundingBox()
-	local shift = Vector3.new(
-		bedTop.X - cframe.Position.X,
-		bedTop.Y - (cframe.Position.Y - size.Y / 2),
-		bedTop.Z - cframe.Position.Z
-	)
-	model:PivotTo(model:GetPivot() + shift)
+	local pivot = model:GetPivot()
+	local actualScale = model:GetScale()
+	local bottomNow = pivot:PointToWorldSpace(bottomOffset * actualScale)
+	model:PivotTo(pivot + (bedTop - bottomNow))
 end
 
 local function stopScaleTween()
-	if scaleTween then
-		scaleTween:Cancel()
-		scaleTween = nil
-	end
-	if scaleValue then
-		scaleValue:Destroy()
-		scaleValue = nil
+	if stepConnection then
+		stepConnection:Disconnect()
+		stepConnection = nil
 	end
 end
 
+--- Eases the plant from one size to another in steps of 1 / Growth.StepRate seconds. The connection only
+--- exists while an animation runs, so an idle plant (or a finished one) costs nothing.
 local function tweenToScale(model, bedTop, fromScale, toScale, time, style, direction)
 	stopScaleTween()
-	local value = Instance.new("NumberValue")
-	value.Value = fromScale
-	scaleValue = value
-	value.Changed:Connect(function(newScale)
-		if model.Parent then
-			applyScale(model, bedTop, newScale)
+	local stepTime = 1 / math.max(PlantsConfig.Growth.StepRate, 1)
+	local elapsed, sinceStep, lastScale = 0, stepTime, nil
+	stepConnection = RunService.Heartbeat:Connect(function(dt)
+		if not model.Parent then
+			stopScaleTween()
+			return
+		end
+		elapsed += dt
+		sinceStep += dt
+		local finished = elapsed >= time
+		if not finished and sinceStep < stepTime then
+			return
+		end
+		sinceStep = 0
+		local alpha = finished and 1 or elapsed / time
+		local scale = fromScale + (toScale - fromScale) * TweenService:GetValue(alpha, style, direction)
+		-- skip imperceptible changes (still always land exactly on the target)
+		if finished or not lastScale or math.abs(scale - lastScale) > lastScale * 0.001 then
+			lastScale = scale
+			applyScale(model, bedTop, scale)
+		end
+		if finished then
+			stopScaleTween()
 		end
 	end)
-	scaleTween = TweenService:Create(value, TweenInfo.new(time, style, direction), { Value = toScale })
-	scaleTween:Play()
 end
 
 ---- Public API
@@ -163,6 +184,7 @@ function Plant_Service:Clear()
 		currentModel:Destroy()
 	end
 	currentModel, currentPlantId = nil, nil
+	bottomOffset = nil
 	growthPoints = 0
 	publishWeight()
 end
@@ -209,7 +231,8 @@ function Plant_Service:SetGrowthPoints(points)
 		fromScale,
 		PlantGrowth.GetScale(growthPoints),
 		PlantsConfig.Growth.TweenTime,
-		Enum.EasingStyle.Quad,
+		-- watering retargets every flush (0.2 s): a linear glide stays smooth, an ease-out would pulse each time
+		Enum.EasingStyle.Linear,
 		Enum.EasingDirection.Out
 	)
 end

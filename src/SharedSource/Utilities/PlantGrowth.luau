@@ -10,17 +10,20 @@ local PlantsConfig = require(ReplicatedStorage.SharedSource.Datas.PlantsConfig)
 
 local PlantGrowth = {}
 
-function PlantGrowth.GetScale(points)
+--- Size ratio (1 = seedling) after the given points: diminishing returns, no cap.
+local function getRatio(points)
 	local growth = PlantsConfig.Growth
-	return growth.SeedlingScale * (1 + (math.max(points, 0) * growth.Coefficient) ^ growth.Exponent)
+	return 1 + (math.max(points, 0) * growth.Coefficient) ^ growth.Exponent
+end
+
+function PlantGrowth.GetScale(points)
+	return PlantsConfig.Growth.SeedlingScale * getRatio(points)
 end
 
 --- Abstract weight (kg) of a plant after the given growth points. A fresh plant weighs its base weight and
 --- gets heavier as it grows (with the same diminishing returns as its size).
 function PlantGrowth.GetWeight(plantId, points)
-	local growth = PlantsConfig.Growth
-	local ratio = 1 + (math.max(points, 0) * growth.Coefficient) ^ growth.Exponent
-	return PlantsConfig.GetBaseWeight(plantId) * ratio
+	return PlantsConfig.GetBaseWeight(plantId) * getRatio(points)
 end
 
 return PlantGrowth

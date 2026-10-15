@@ -52,6 +52,7 @@ BalanceConfig.TargetTime = {
 	Rare = 720, -- 12:00
 	Epic = 480, -- 8:00
 	Legendary = 300, -- 5:00
+	Mythic = 180, -- 3:00
 }
 
 -- the waiting time after a plant finished (the juice pool is open), before the next plant is selected
@@ -160,6 +161,7 @@ BalanceConfig.Harvest = {
 		Rare = 210,
 		Epic = 330,
 		Legendary = 600,
+		Mythic = 1000,
 	},
 	-- the prize pool of a plant = its weight (kg) * PoolPerKg, split between contributors.
 	-- An average contributor of a full server gets ~500-600 coins from the pool of a Common plant (a 20 minute
@@ -177,6 +179,7 @@ BalanceConfig.BaseWeight = {
 	Rare = 2.2,
 	Epic = 3.2,
 	Legendary = 5,
+	Mythic = 8,
 }
 
 return BalanceConfig

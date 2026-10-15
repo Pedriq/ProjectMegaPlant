@@ -48,6 +48,7 @@ JuiceConfig.Multipliers = {
 	Rare = { 3, 6 },
 	Epic = { 5, 10 },
 	Legendary = { 8, 16 },
+	Mythic = { 12, 25 },
 }
 -- size = scale / seedling scale at the end of the growth (see PlantGrowth); this ratio counts as "fully huge"
 JuiceConfig.SizeRatioForMax = 12
