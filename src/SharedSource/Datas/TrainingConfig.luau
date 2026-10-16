@@ -5,8 +5,9 @@
 	folder in each zone).
 
 	Each zone is configured independently:
-		Multiplier     fixed zone multiplier: Zone1 x1, Zone2 x2, Zone3 x5. Every zone grants
-		               BaseGainPerSecond (+3 per second) times its multiplier: 3 / 6 / 15 per second.
+		Multiplier     stat points granted per tick (a tick is ApplyInterval = 0.5 s, so twice per second):
+		               Zone1 x1, Zone2 x2, Zone3 x5, Zone4 x10, Zone5 x25, Zone6 x50, Zone7 x75, Zone8 x100.
+		               E.g. x10 = 10 per tick = 20 per second.
 		GainPerSecond  (optional) overrides the formula above. Either a number (same for every
 		               activity of the zone) or a table per activity, e.g. { Strength = 2, Mobility = 1 }.
 		Unlock         what the player needs before the zone can be used:
@@ -21,7 +22,7 @@ local TrainingConfig = {}
 -- Replicated on purpose: clients use it to fade other trainees at the same station.
 TrainingConfig.Attribute = "TrainingStation"
 
--- stat points every zone grants per second of training, before its multiplier
+-- used only by the juice pools (JuicePool_Service); zone training grants `Multiplier` points per tick
 TrainingConfig.BaseGainPerSecond = 3
 
 TrainingConfig.RootPath = { "Garden", "TrainingZone" }
@@ -37,13 +38,43 @@ TrainingConfig.Zones = {
 		Order = 2,
 		DisplayName = "Zone 2",
 		Multiplier = 2,
-		Unlock = { Stat = "PlantsGrown", Amount = 3 },
+		Unlock = { Stat = "PlantsGrown", Amount = 1 },
 	},
 	Zone3 = {
 		Order = 3,
 		DisplayName = "Zone 3",
 		Multiplier = 5,
-		Unlock = { Stat = "PlantsGrown", Amount = 10 },
+		Unlock = { Stat = "PlantsGrown", Amount = 3 },
+	},
+	Zone4 = {
+		Order = 4,
+		DisplayName = "Zone 4",
+		Multiplier = 10,
+		Unlock = { Stat = "PlantsGrown", Amount = 8 },
+	},
+	Zone5 = {
+		Order = 5,
+		DisplayName = "Zone 5",
+		Multiplier = 25,
+		Unlock = { Stat = "PlantsGrown", Amount = 15 },
+	},
+	Zone6 = {
+		Order = 6,
+		DisplayName = "Zone 6",
+		Multiplier = 50,
+		Unlock = { Stat = "PlantsGrown", Amount = 25 },
+	},
+	Zone7 = {
+		Order = 7,
+		DisplayName = "Zone 7",
+		Multiplier = 75,
+		Unlock = { Stat = "PlantsGrown", Amount = 50 },
+	},
+	Zone8 = {
+		Order = 8,
+		DisplayName = "Zone 8",
+		Multiplier = 100,
+		Unlock = { Stat = "PlantsGrown", Amount = 100 },
 	},
 }
 
@@ -110,7 +141,7 @@ function TrainingConfig.GetGainPerSecond(zoneId, activityId)
 	elseif override then
 		return override
 	end
-	return TrainingConfig.BaseGainPerSecond * (zone.Multiplier or 1)
+	return (zone.Multiplier or 1) / TrainingConfig.ApplyInterval
 end
 
 --- The fixed multiplier of a zone (x1, x2, x5).

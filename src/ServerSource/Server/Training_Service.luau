@@ -201,20 +201,22 @@ local function startTraining(player, station)
 	-- stat growth
 	local gainPerSecond = TrainingConfig.GetGainPerSecond(station.ZoneId, station.ActivityId)
 	local stat = station.Activity.Stat
+	local gainPerTick = gainPerSecond * TrainingConfig.ApplyInterval
 	local accumulated, sinceApply = 0, 0
 	sessions:Start(player, function(dt)
 		if not active[player] then
 			return false
 		end
-		accumulated += gainPerSecond * dt
+		-- one gain per ApplyInterval (twice per second): the zone multiplier is the points per tick
 		sinceApply += dt
-		if sinceApply >= TrainingConfig.ApplyInterval then
-			sinceApply = 0
-			local whole = math.floor(accumulated)
-			if whole >= 1 then
-				accumulated -= whole
-				Stats_Service:AddStat(player, stat, whole)
-			end
+		while sinceApply >= TrainingConfig.ApplyInterval do
+			sinceApply -= TrainingConfig.ApplyInterval
+			accumulated += gainPerTick
+		end
+		local whole = math.floor(accumulated + 1e-6)
+		if whole >= 1 then
+			accumulated -= whole
+			Stats_Service:AddStat(player, stat, whole)
 		end
 		return true
 	end)
