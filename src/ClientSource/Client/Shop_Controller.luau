@@ -55,6 +55,11 @@ local FONT_BOLD = Font.new("rbxasset://fonts/families/Nunito.json", Enum.FontWei
 local WHITE = Color3.new(1, 1, 1)
 local BLACK = rgb(10, 10, 10)
 
+-- Roblox "Stud" texture laid under the text of every card
+local CARD_PATTERN = "rbxassetid://139348939021356"
+local CARD_PATTERN_TILE = 100
+local CARD_PATTERN_TRANSPARENCY = 0.8
+
 -- vertical gradients, light on top (same stops as the Figma frame)
 local Colors = {
 	Panel = ColorSequence.new(rgb(107, 98, 72), rgb(75, 70, 50)),
@@ -89,9 +94,9 @@ local PAD_TOP = 22
 local CARD_W = CANVAS_W - PAD_X * 2
 local CARD_H = 124
 local CARD_GAP = 12
-local HINT_GAP = 20
-local HINT_H = 18
-local PAD_BOTTOM = 24
+local HINT_GAP = 18
+local HINT_H = 20
+local PAD_BOTTOM = 22
 local CARD_COUNT = #UpgradesConfig.Order
 local CARDS_Y = BODY_Y + PAD_TOP
 local CARDS_H = CARD_COUNT * CARD_H + (CARD_COUNT - 1) * CARD_GAP
@@ -111,6 +116,13 @@ local function append(props, children)
 		end
 	end
 	return props
+end
+
+local function read(value)
+	if type(value) == "function" then
+		return value()
+	end
+	return value
 end
 
 local function Corner(px)
@@ -150,17 +162,34 @@ local function Sheen(alpha, inset, height, corner)
 	})
 end
 
+--- Tiled stud texture inside a surface, under all of its content (and inside its outline).
+local function Pattern(inset, corner)
+	return create("ImageLabel")({
+		Name = "Pattern",
+		Position = UDim2.fromOffset(inset, inset),
+		Size = UDim2.new(1, -inset * 2, 1, -inset * 2),
+		BackgroundTransparency = 1,
+		Image = CARD_PATTERN,
+		ImageTransparency = CARD_PATTERN_TRANSPARENCY,
+		ScaleType = Enum.ScaleType.Tile,
+		TileSize = UDim2.fromOffset(CARD_PATTERN_TILE, CARD_PATTERN_TILE),
+		ZIndex = 0,
+
+		Corner(corner),
+	})
+end
+
 --- Surface with a vertical gradient, a thick black outline and an optional sheen.
---- props: Name, AnchorPoint, Position, Size, AutomaticSize, LayoutOrder, Colors (ColorSequence or function),
----        Stroke (px), Corner (px, default 4), Sheen (alpha), SheenHeight (px), Children
+--- props: Name, AnchorPoint, Position, Size, LayoutOrder, Colors (ColorSequence or function),
+---        Stroke (px), Corner (px, default 4), Sheen (alpha), SheenHeight (px), Pattern (bool), Children
 local function Box(props)
 	local corner = props.Corner or 4
+	local inset = props.Stroke or 0
 	local frame = {
 		Name = props.Name,
 		AnchorPoint = props.AnchorPoint,
 		Position = props.Position,
 		Size = props.Size,
-		AutomaticSize = props.AutomaticSize,
 		LayoutOrder = props.LayoutOrder,
 		BackgroundColor3 = WHITE,
 		BorderSizePixel = 0,
@@ -171,19 +200,48 @@ local function Box(props)
 	if props.Stroke then
 		frame[#frame + 1] = Outline(props.Stroke)
 	end
+	if props.Pattern then
+		frame[#frame + 1] = Pattern(inset, math.max(corner - 1, 0))
+	end
 	if props.Sheen then
-		local inset = props.Stroke or 0
 		frame[#frame + 1] = Sheen(props.Sheen, inset, props.SheenHeight or 30, 1)
 	end
 	return create("Frame")(append(frame, props.Children))
 end
 
---- Text with an optional black outline and a hard drop shadow (both in design pixels).
---- props: Name, AnchorPoint, Position, Size, AutoWidth (+ Height), LayoutOrder, Text, TextSize, Font, Color,
----        Transparency, Stroke, Shadow, ShadowTransparency, Outlined (function -> bool, toggles stroke+shadow),
----        XAlignment
+-- rough glyph widths of Nunito ExtraBold, as a share of the text height (used to size boxes around numbers)
+local GLYPH_WIDTH = {
+	[","] = 0.28,
+	["."] = 0.28,
+	[" "] = 0.28,
+	["%"] = 0.9,
+	["x"] = 0.56,
+	["L"] = 0.52,
+	["V"] = 0.68,
+}
+
+--- Width of a box that fits `text` when it is drawn `height` px tall.
+local function fitWidth(text, height)
+	local width = 0
+	for _, code in utf8.codes(text) do
+		local char = utf8.char(code)
+		width += GLYPH_WIDTH[char] or (char:match("%d") and 0.6 or 0.62)
+	end
+	return math.ceil(width * height) + 2
+end
+
+--- Text that scales to fill its box (TextScaled), with an optional black outline and a hard drop shadow.
+--- The box height is the text size; long texts shrink to the box width.
+--- props: Name, AnchorPoint, Position, Size (or Height + FitText: the width follows the text),
+---        LayoutOrder, Text, Font, Color, Transparency, Stroke, Shadow, ShadowTransparency,
+---        Outlined (function -> bool, toggles stroke+shadow), XAlignment
 local function Text(props)
-	local autoWidth = props.AutoWidth == true
+	local size = props.Size
+	if props.FitText then
+		size = function()
+			return UDim2.fromOffset(fitWidth(read(props.Text), props.Height), props.Height)
+		end
+	end
 
 	local function label(isShadow)
 		local children = {}
@@ -199,12 +257,11 @@ local function Text(props)
 		return create("TextLabel")(append({
 			Name = isShadow and "Shadow" or "Text",
 			Position = isShadow and UDim2.fromOffset(0, props.Shadow) or UDim2.new(),
-			Size = autoWidth and UDim2.fromScale(0, 1) or UDim2.fromScale(1, 1),
-			AutomaticSize = autoWidth and Enum.AutomaticSize.X or Enum.AutomaticSize.None,
+			Size = UDim2.fromScale(1, 1),
 			BackgroundTransparency = 1,
 			FontFace = props.Font or FONT,
 			Text = props.Text,
-			TextSize = props.TextSize,
+			TextScaled = true,
 			TextColor3 = isShadow and BLACK or (props.Color or WHITE),
 			TextTransparency = isShadow and (props.ShadowTransparency or 0) or (props.Transparency or 0),
 			TextXAlignment = props.XAlignment or Enum.TextXAlignment.Left,
@@ -218,8 +275,7 @@ local function Text(props)
 		Name = props.Name or "Label",
 		AnchorPoint = props.AnchorPoint,
 		Position = props.Position,
-		Size = props.Size or UDim2.fromOffset(0, props.Height),
-		AutomaticSize = autoWidth and Enum.AutomaticSize.X or Enum.AutomaticSize.None,
+		Size = size,
 		LayoutOrder = props.LayoutOrder,
 		BackgroundTransparency = 1,
 
@@ -242,11 +298,13 @@ local function Coin(size, layoutOrder)
 		create("UIStroke")({ Thickness = 2, Color = rgb(122, 74, 0) }),
 		create("TextLabel")({
 			Name = "Sign",
-			Size = UDim2.fromScale(1, 1),
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.5, 0.5),
+			Size = UDim2.fromScale(0.7, 0.7),
 			BackgroundTransparency = 1,
 			FontFace = FONT,
 			Text = "$",
-			TextSize = math.floor(size * 0.62),
+			TextScaled = true,
 			TextColor3 = rgb(138, 90, 0),
 		}),
 	})
@@ -303,6 +361,9 @@ local function UpgradeCard(upgradeId, layoutOrder, level, coins, onBuy)
 	local function parts()
 		return UpgradesConfig.GetEffectParts(upgradeId, level())
 	end
+	local function nextValue()
+		return parts().Next
+	end
 
 	local icon
 	if config.IconImage then
@@ -310,7 +371,7 @@ local function UpgradeCard(upgradeId, layoutOrder, level, coins, onBuy)
 			Name = "Icon",
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			Position = UDim2.fromScale(0.5, 0.5),
-			Size = UDim2.fromOffset(44, 44),
+			Size = UDim2.fromOffset(48, 48),
 			BackgroundTransparency = 1,
 			Image = config.IconImage,
 			ScaleType = Enum.ScaleType.Fit,
@@ -320,7 +381,7 @@ local function UpgradeCard(upgradeId, layoutOrder, level, coins, onBuy)
 			Name = "Glyph",
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			Position = UDim2.fromScale(0.5, 0.5),
-			Size = UDim2.fromOffset(44, 44),
+			Size = UDim2.fromOffset(48, 48),
 			BackgroundTransparency = 1,
 			Text = config.Glyph or "?",
 			TextScaled = true,
@@ -335,6 +396,7 @@ local function UpgradeCard(upgradeId, layoutOrder, level, coins, onBuy)
 		Colors = ColorSequence.new(accent:Lerp(WHITE, 0.35), accent:Lerp(BLACK, 0.2)),
 		Stroke = 3,
 		Corner = 4,
+		Pattern = true,
 		Children = {
 			-- big square icon plate in a deeper shade of the accent
 			Box({
@@ -350,10 +412,9 @@ local function UpgradeCard(upgradeId, layoutOrder, level, coins, onBuy)
 			-- 1) name (the strongest text of the card)
 			Text({
 				Name = "Name",
-				Position = UDim2.fromOffset(127, 18),
-				Size = UDim2.fromOffset(240, 25),
+				Position = UDim2.fromOffset(127, 15),
+				Size = UDim2.fromOffset(236, 26),
 				Text = config.DisplayName,
-				TextSize = 20,
 				Stroke = 2,
 				Shadow = 2,
 			}),
@@ -361,8 +422,8 @@ local function UpgradeCard(upgradeId, layoutOrder, level, coins, onBuy)
 			create("Frame")({
 				Name = "LevelChip",
 				AnchorPoint = Vector2.new(1, 0),
-				Position = UDim2.fromOffset(439, 20),
-				Size = UDim2.fromOffset(62, 22),
+				Position = UDim2.fromOffset(439, 16),
+				Size = UDim2.fromOffset(66, 24),
 				BackgroundColor3 = Color3.new(0, 0, 0),
 				BackgroundTransparency = 0.7,
 				BorderSizePixel = 0,
@@ -370,22 +431,22 @@ local function UpgradeCard(upgradeId, layoutOrder, level, coins, onBuy)
 				Corner(4),
 				Text({
 					Name = "Level",
-					Size = UDim2.fromScale(1, 1),
+					AnchorPoint = Vector2.new(0.5, 0.5),
+					Position = UDim2.fromScale(0.5, 0.5),
+					Size = UDim2.new(1, -12, 0, 14),
 					XAlignment = Enum.TextXAlignment.Center,
 					Text = function()
 						return ("LV %d"):format(level())
 					end,
-					TextSize = 10,
 					Transparency = 0.05,
 				}),
 			}),
 			-- 3) what it improves, small and quiet (no outline)
 			Text({
 				Name = "Caption",
-				Position = UDim2.fromOffset(127, 51),
-				Size = UDim2.fromOffset(312, 18),
+				Position = UDim2.fromOffset(127, 46),
+				Size = UDim2.fromOffset(312, 17),
 				Text = config.Description,
-				TextSize = 13,
 				Font = FONT_BOLD,
 				Transparency = 0.1,
 				Shadow = 1,
@@ -394,19 +455,18 @@ local function UpgradeCard(upgradeId, layoutOrder, level, coins, onBuy)
 			-- 4) THE benefit: current value, then the next level on a lime chip
 			Row({
 				Name = "Benefit",
-				Position = UDim2.fromOffset(127, 76),
-				Size = UDim2.fromOffset(312, 30),
+				Position = UDim2.fromOffset(127, 70),
+				Size = UDim2.fromOffset(312, 34),
 				Gap = 10,
 				Children = {
 					Text({
 						Name = "Current",
 						LayoutOrder = 1,
-						AutoWidth = true,
-						Height = 30,
+						FitText = true,
+						Height = 25,
 						Text = function()
 							return parts().Current
 						end,
-						TextSize = 21,
 						Font = FONT_BOLD,
 						Transparency = 0.2,
 						Shadow = 1,
@@ -415,30 +475,28 @@ local function UpgradeCard(upgradeId, layoutOrder, level, coins, onBuy)
 					Text({
 						Name = "Arrow",
 						LayoutOrder = 2,
-						AutoWidth = true,
-						Height = 30,
+						Size = UDim2.fromOffset(20, 22),
+						XAlignment = Enum.TextXAlignment.Center,
 						Text = "→",
-						TextSize = 18,
 						Transparency = 0.15,
 					}),
 					Box({
 						Name = "Next",
 						LayoutOrder = 3,
-						Size = UDim2.fromOffset(0, 29),
-						AutomaticSize = Enum.AutomaticSize.X,
+						Size = function()
+							return UDim2.fromOffset(fitWidth(nextValue(), 25) + 30, 32)
+						end,
 						Colors = Colors.Lime,
 						Stroke = 2.5,
 						Corner = 3,
 						Children = {
-							create("UIPadding")({ PaddingLeft = UDim.new(0, 15), PaddingRight = UDim.new(0, 15) }),
 							Text({
 								Name = "Value",
-								AutoWidth = true,
-								Height = 29,
-								Text = function()
-									return parts().Next
-								end,
-								TextSize = 21,
+								AnchorPoint = Vector2.new(0.5, 0.5),
+								Position = UDim2.fromScale(0.5, 0.5),
+								Size = UDim2.new(1, -30, 0, 25),
+								XAlignment = Enum.TextXAlignment.Center,
+								Text = nextValue,
 								Color = NEXT_VALUE_TEXT,
 							}),
 						},
@@ -462,21 +520,23 @@ local function UpgradeCard(upgradeId, layoutOrder, level, coins, onBuy)
 				Children = {
 					Row({
 						Name = "Price",
-						Position = UDim2.fromOffset(0, 20),
-						Size = UDim2.new(1, 0, 0, 28),
+						Position = UDim2.fromOffset(6, 16),
+						Size = UDim2.new(1, -12, 0, 30),
 						HorizontalAlignment = Enum.HorizontalAlignment.Center,
 						Gap = 5,
 						Children = {
-							Coin(20, 1),
+							Coin(22, 1),
 							Text({
 								Name = "Amount",
 								LayoutOrder = 2,
-								AutoWidth = true,
-								Height = 28,
+								Height = 27,
+								Size = function()
+									-- never wider than the button (long prices just shrink)
+									return UDim2.fromOffset(math.min(fitWidth(formatNumber(price()), 27), 62), 27)
+								end,
 								Text = function()
 									return formatNumber(price())
 								end,
-								TextSize = 23,
 								Color = function()
 									return affordable() and WHITE or DISABLED_TEXT
 								end,
@@ -488,11 +548,10 @@ local function UpgradeCard(upgradeId, layoutOrder, level, coins, onBuy)
 					}),
 					Text({
 						Name = "Action",
-						Position = UDim2.fromOffset(0, 51),
-						Size = UDim2.new(1, 0, 0, 17),
+						Position = UDim2.fromOffset(8, 53),
+						Size = UDim2.new(1, -16, 0, 15),
 						XAlignment = Enum.TextXAlignment.Center,
 						Text = "UPGRADE",
-						TextSize = 11,
 						Color = function()
 							return affordable() and WHITE or DISABLED_TEXT
 						end,
@@ -514,6 +573,9 @@ local function Header(coins, onClose)
 	local shownCoins = Vide.spring(function()
 		return coins()
 	end, 0.3, 1)
+	local function coinsText()
+		return formatNumber(shownCoins())
+	end
 	local innerCorner = PANEL_CORNER - PANEL_STROKE
 
 	return create("Frame")({
@@ -574,10 +636,10 @@ local function Header(coins, onClose)
 
 		Text({
 			Name = "Title",
-			Position = UDim2.fromOffset(24, 0),
-			Size = UDim2.fromOffset(360, HEADER_H),
+			AnchorPoint = Vector2.new(0, 0.5),
+			Position = UDim2.new(0, 24, 0.5, 0),
+			Size = UDim2.fromOffset(330, 42),
 			Text = "Upgrade Shop",
-			TextSize = 36,
 			Stroke = 3,
 			Shadow = 3,
 		}),
@@ -587,31 +649,27 @@ local function Header(coins, onClose)
 			Name = "Coins",
 			AnchorPoint = Vector2.new(1, 0.5),
 			Position = UDim2.new(0, HEADER_W - 24 - 40 - 12, 0.5, 0),
-			Size = UDim2.fromOffset(0, 42),
-			AutomaticSize = Enum.AutomaticSize.X,
+			Size = function()
+				-- 18 + coin 24 + gap 10 + amount + 18, at least 100 wide
+				return UDim2.fromOffset(math.max(100, 70 + fitWidth(coinsText(), 25)), 42)
+			end,
 			Colors = Colors.Gold,
 			Stroke = 3,
 			Corner = 3,
 			Children = {
-				create("UISizeConstraint")({ MinSize = Vector2.new(100, 0) }),
 				Row({
 					Name = "Content",
-					Size = UDim2.fromScale(0, 1),
-					AutomaticSize = Enum.AutomaticSize.X,
+					Size = UDim2.fromScale(1, 1),
 					HorizontalAlignment = Enum.HorizontalAlignment.Center,
 					Gap = 10,
 					Children = {
-						create("UIPadding")({ PaddingLeft = UDim.new(0, 18), PaddingRight = UDim.new(0, 18) }),
 						Coin(24, 1),
 						Text({
 							Name = "Amount",
 							LayoutOrder = 2,
-							AutoWidth = true,
-							Height = 42,
-							Text = function()
-								return formatNumber(shownCoins())
-							end,
-							TextSize = 21,
+							FitText = true,
+							Height = 25,
+							Text = coinsText,
 							Stroke = 2,
 							Shadow = 2,
 						}),
@@ -632,10 +690,11 @@ local function Header(coins, onClose)
 			Children = {
 				Text({
 					Name = "X",
-					Size = UDim2.fromScale(1, 1),
+					AnchorPoint = Vector2.new(0.5, 0.5),
+					Position = UDim2.fromScale(0.5, 0.5),
+					Size = UDim2.fromOffset(24, 26),
 					XAlignment = Enum.TextXAlignment.Center,
 					Text = "X",
-					TextSize = 22,
 					Stroke = 2,
 					Shadow = 2,
 				}),
@@ -703,6 +762,7 @@ local function ShopUI(levels, coins, onBuy, onClose)
 				Size = UDim2.fromScale(1, 1),
 				Colors = Colors.Panel,
 				Stroke = PANEL_STROKE,
+				BackgroundTransparency = 0.25,
 				Corner = PANEL_CORNER,
 				Children = {
 					Header(coins, onClose),
@@ -733,13 +793,14 @@ local function ShopUI(levels, coins, onBuy, onClose)
 
 					Text({
 						Name = "Hint",
-						Position = UDim2.fromOffset(0, HINT_Y),
-						Size = UDim2.new(1, 0, 0, HINT_H),
+						AnchorPoint = Vector2.new(0.5, 0),
+						Position = UDim2.fromOffset(CANVAS_W / 2, HINT_Y),
+						Size = UDim2.fromOffset(CARD_W, HINT_H - 4),
 						XAlignment = Enum.TextXAlignment.Center,
 						Text = function()
-							return anyAffordable() and "Tap UPGRADE to level up" or "Earn coins to unlock your next upgrade"
+							return anyAffordable() and "Tap UPGRADE to level up"
+								or "Earn coins to unlock your next upgrade"
 						end,
-						TextSize = 12,
 						Font = FONT_BOLD,
 						Transparency = 0.25,
 					}),
