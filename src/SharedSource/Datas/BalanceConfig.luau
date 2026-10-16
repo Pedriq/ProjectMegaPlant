@@ -130,9 +130,8 @@ BalanceConfig.Luck = {
 }
 
 ---- Strength -> watering can capacity (see StatsConfig) and its visual size (see WateringCansConfig)
--- capacity(S) = Base + Bonus * (1 - e^(-S / Scale)) + Tail * log10(1 + S / TailScale)
---   Bonus/Scale: fast, very visible early growth (10 -> ~17 after one minute of Zone 1, ~36 after five)
---   Tail:        an endless but slow logarithmic climb, so late game never explodes (S = 1,000,000 -> ~100)
+-- capacity(S) = ((S - 6.034) / 0.0057114874) ^ (1 / 3.3601)   (see StatsConfig.GetCapacity)
+-- Only Base (the can's visual-scale reference) and Milestone are still used; the rest belongs to the old formula.
 -- A bigger can makes each trip longer but saves walking; the throughput of a player is capped anyway
 -- (see the rate formula at the top), so capacity can't break the grow-time floor.
 BalanceConfig.Capacity = {

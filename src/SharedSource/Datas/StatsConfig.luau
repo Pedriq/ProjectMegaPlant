@@ -85,12 +85,9 @@ end
 
 --- Watering can capacity for a Strength value.
 function StatsConfig.GetCapacity(strength)
-	local capacity = StatsConfig.Capacity
-	strength = math.max(strength, 0)
-	local value = capacity.Base
-		+ capacity.Bonus * (1 - math.exp(-strength / capacity.Scale))
-		+ capacity.Tail * math.log10(1 + strength / capacity.TailScale)
-	return math.floor(value)
+	-- below 6.034 the base goes negative (NaN with a fractional power), so clamp it; the can always holds at least 1
+	local value = (math.max(strength - 6.034, 0) / 0.0057114874) ^ (1 / 3.3601)
+	return math.max(math.floor(value), 1)
 end
 
 --- Walk speed for a Mobility value.

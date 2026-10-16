@@ -68,11 +68,9 @@ local function payBeat(player, final)
 		state.Combo = 0
 	end
 
-	local multiplier = 1 + math.min(state.Combo, config.ComboMax) * config.ComboStep
-	local lucky = not final and random:NextNumber() < Upgrade_Service:GetCritChance(player)
-	if lucky then
-		multiplier *= config.CritMultiplier
-	end
+	-- watering pays exactly WaterConfig.CoinsPerWater per unit (1:1): no combo or lucky multiplier
+	local multiplier = 1
+	local lucky = false
 
 	local coins = state.Water * WaterConfig.CoinsPerWater * multiplier + state.Remainder
 	local whole = math.floor(coins)
