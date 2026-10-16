@@ -144,11 +144,14 @@ BalanceConfig.Capacity = {
 	Milestone = 5,
 }
 
--- Visual scale of the carried can: 1 at base capacity, then
---   1 + Growth * (1 - e^(-(capacity - Base) / Scale))  ->  1.2 at 16, 1.5 at 25, 1.7 at 36, 1.9 at 100+
+-- Visual scale of the one carried can: it grows with the water carried (see WateringCansConfig.GetWaterScale):
+--   scale = MinScale + Coefficient * water ^ Exponent           up to SlowdownWater
+--   then keeps the slope it has there and flattens logarithmically
+--   -> x2 at 5 water, x4.4 at 25, x7.6 at 70, x21 at 400, ~x40 at 2000: fast at first, slower and slower
 BalanceConfig.CanSize = {
-	Growth = 0.9,
-	Scale = 20,
+	Coefficient = 0.55,
+	Exponent = 0.6, -- below 1: the can is already large at a little water
+	SlowdownWater = 400, -- past this much water the growth slows down even more
 }
 
 ---- Harvest rewards

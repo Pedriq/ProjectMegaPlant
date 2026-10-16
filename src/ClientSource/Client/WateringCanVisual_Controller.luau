@@ -9,7 +9,7 @@ local WaterState = require(ReplicatedStorage.ClientSource.Utilities.WaterState)
 --[[
 	Shows each player's equipped watering can floating above their head while they carry water.
 	  - hidden when the player has no water
-	  - scales between the can's MinScale and MaxScale with the fill level, and grows with the capacity (Strength)
+	  - one big can that grows with the water carried (WateringCansConfig.GetWaterScale): linear up to 400 water, then slower
 	  - turns toward the plant and tilts while the player is pouring
 	Every client renders every player's can from replicated attributes; the model is anchored and
 	moved per frame, so it never affects character physics.
@@ -84,6 +84,9 @@ local function createEntry(player, canId)
 		Config = config,
 		Model = model,
 		BaseHeight = baseSize.Y,
+		-- where the middle of the model is relative to its pivot (at scale 1): the pivot is often not the center,
+		-- so the can is placed by its middle to stay centered above the head
+		CenterOffset = model:GetPivot():PointToObjectSpace(model:GetBoundingBox().Position),
 		Spout = model:FindFirstChild("Spout", true),
 		Scale = 0,
 		Tilt = 0,
@@ -109,14 +112,12 @@ local function update(player, dt, plantTarget)
 	local alive = humanoid ~= nil and humanoid.Health > 0
 
 	local water = WaterState.GetWater(player)
-	local capacity = math.max(WaterState.GetCapacity(player), 1)
 	local config = WateringCansConfig.Get(canId)
 
 	local targetScale = 0
 	if water > 0 and canId and head and root and alive then
-		-- the fill level sets the size within the can, the capacity (Strength) makes the whole can bigger
-		targetScale = (config.MinScale + (config.MaxScale - config.MinScale) * math.clamp(water / capacity, 0, 1))
-			* WateringCansConfig.GetCapacityScale(capacity)
+		-- the more water carried, the bigger the can (growth slows down past BalanceConfig.CanSize.SlowdownWater)
+		targetScale = WateringCansConfig.GetWaterScale(config, water)
 	end
 
 	local entry = entries[player]
@@ -144,9 +145,10 @@ local function update(player, dt, plantTarget)
 	local scale = math.max(entry.Scale, 0.01)
 	entry.Model:ScaleTo(scale)
 
-	local bob = math.sin(os.clock() * 3 + player.UserId) * 0.12 * scale
+	local bob = math.sin(os.clock() * 3 + player.UserId) * 0.12 -- fixed, so a huge can doesn't bob into the head
 	local height = entry.BaseHeight * scale
-	local position = head.Position + Vector3.new(0, head.Size.Y / 2 + config.HoverGap * scale + height / 2 + bob, 0)
+	-- the middle of the can: straight above the head, its bottom a fixed gap over the top of the head
+	local position = head.Position + Vector3.new(0, head.Size.Y / 2 + config.HoverGap + height / 2 + bob, 0)
 
 	-- facing: follow the character, or turn toward the plant while pouring
 	local desiredRotation = root.CFrame.Rotation
@@ -168,7 +170,8 @@ local function update(player, dt, plantTarget)
 		* entry.Rotation
 		* CFrame.Angles(-entry.Tilt, 0, 0)
 		* CFrame.Angles(math.rad(offset.X), math.rad(offset.Y), math.rad(offset.Z))
-	entry.Model:PivotTo(cframe)
+	local pivot = cframe * CFrame.new(-entry.CenterOffset * scale)
+	entry.Model:PivotTo(pivot)
 	entry.TopPosition = position + Vector3.new(0, height * 0.4, 0)
 
 	-- spout position (used by the water stream)
@@ -178,7 +181,7 @@ local function update(player, dt, plantTarget)
 	elseif spout and spout:IsA("BasePart") then
 		entry.SpoutPosition = spout.Position
 	else
-		entry.SpoutPosition = (cframe * CFrame.new(config.SpoutOffset * scale)).Position
+		entry.SpoutPosition = (pivot * CFrame.new(config.SpoutOffset * scale)).Position
 	end
 end
 

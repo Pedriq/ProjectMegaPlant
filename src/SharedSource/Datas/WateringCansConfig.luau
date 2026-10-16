@@ -10,7 +10,7 @@
 		PourRate      water units per second poured onto the plant
 		MinScale      model scale when the can is nearly empty
 		MaxScale      model scale when the can is full
-		HoverGap      studs between the top of the head and the bottom of the can (at scale 1)
+		HoverGap      studs between the top of the head and the bottom of the can (a fixed distance, it doesn't grow with the can)
 		RotationOffset  degrees (X, Y, Z) to align the model: its front (spout side) must point at -Z
 		SpoutOffset   spout position relative to the model pivot at scale 1 (used when the model has
 		              no part/attachment named "Spout")
@@ -41,12 +41,20 @@ WateringCansConfig.Cans = {
 	},
 }
 
---- Size multiplier of the carried can for a capacity: 1 at the base capacity, growing fast at first and
---- flattening out (BalanceConfig.CanSize), so a bigger can is obvious but never absurd or clipping.
-function WateringCansConfig.GetCapacityScale(capacity)
+--- Scale of the carried can for the water it holds (BalanceConfig.CanSize): MinScale plus Coefficient * water ^ Exponent
+--- (big already at a little water), up to SlowdownWater. Past that the growth slows down (logarithmic), so the can never stops
+--- growing but gets harder to enlarge the bigger it is.
+function WateringCansConfig.GetWaterScale(config, water)
 	local balance = BalanceConfig.CanSize
-	local extra = math.max(capacity - BalanceConfig.Capacity.Base, 0)
-	return 1 + balance.Growth * (1 - math.exp(-extra / balance.Scale))
+	local slowdown = balance.SlowdownWater
+	local scale = config.MinScale + balance.Coefficient * math.min(water, slowdown) ^ balance.Exponent
+	local extra = water - slowdown
+	if extra > 0 then
+		-- continues with the slope the curve has at SlowdownWater, then flattens
+		local slope = balance.Coefficient * balance.Exponent * slowdown ^ (balance.Exponent - 1)
+		scale += slope * slowdown * math.log(1 + extra / slowdown)
+	end
+	return scale
 end
 
 --- Returns the config for a can, falling back to the default can.
