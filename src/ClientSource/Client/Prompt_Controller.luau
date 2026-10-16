@@ -1,3 +1,4 @@
+local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
 local ProximityPromptService = game:GetService("ProximityPromptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -25,8 +26,9 @@ local cleanup = Vide.cleanup
 	Each task has its own color and icon (STYLES, by prompt name). Prompts whose ActionText is "Locked"
 	(TrainingLock_Controller) turn grey with a lock. Holds of "hold as long as you want" prompts (filling
 	the can, watering the plant) show a pulsing glow instead of a progress bar.
-	Keyboard shows the key, gamepad the button image, touch "TAP"; on touch the card can be tapped.
-	On PC/console the card has no button, so it never catches the mouse.
+	Keyboard shows the key, gamepad the button image, touch "TAP". A left click (PC) or a tap (mobile) on the
+	card holds the prompt too; both are read from UserInputService and hit-tested against the card's spot on
+	the screen (the card has no GUI button), so it never catches the mouse and camera turning stays smooth.
 ]]
 local Prompt_Controller = Knit.CreateController({
 	Name = "Prompt_Controller",
@@ -70,6 +72,18 @@ local TEXT_W = 160
 -- holds longer than this are "hold as long as you want" (water prompts use 3600 s): no progress bar
 local LONG_HOLD = 30
 local OPEN_TIME = 0.15
+-- the card floats this far above the prompt's part
+local CARD_LIFT = Vector3.new(0, 1, 0)
+
+--- World point the card is attached to (where BillboardGui puts its adornee).
+local function anchorPosition(adornee)
+	if adornee:IsA("BasePart") then
+		return adornee.Position
+	elseif adornee:IsA("Attachment") then
+		return adornee.WorldPosition
+	end
+	return (adornee:GetBoundingBox()).Position
+end
 
 ---- Card
 
@@ -189,25 +203,23 @@ local function PromptCard(prompt, inputType, closing)
 	local objectY = timed and 11 or 16
 	local actionY = timed and 28 or 33
 
-	local touch = inputType == Enum.ProximityPromptInputType.Touch
-
 	local adornee = prompt.Parent
 	if not (adornee and (adornee:IsA("BasePart") or adornee:IsA("Attachment") or adornee:IsA("Model"))) then
 		adornee = nil
 	end
 
-	return create("BillboardGui")({
+	local gui = create("BillboardGui")({
 		Name = "Prompt_" .. prompt.Name,
 		Adornee = adornee,
 		AlwaysOnTop = true,
 		ResetOnSpawn = false,
-		-- only touch needs to tap the card; on PC/console the card must never catch the mouse
-		-- (holding the right mouse button to turn the camera has to pass right through it)
-		Active = touch,
+		-- the card never catches the mouse / touches itself (clicks and taps are read in pointerHold below),
+		-- so turning the camera over it stays smooth
+		Active = false,
 		ClipsDescendants = false,
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 		Size = UDim2.fromOffset(CARD_W * fit + 16, CARD_H * fit + 16),
-		StudsOffset = Vector3.new(0, 1, 0),
+		StudsOffsetWorldSpace = CARD_LIFT,
 
 		create("Frame")({
 			Name = "Root",
@@ -323,30 +335,71 @@ local function PromptCard(prompt, inputType, closing)
 							TextScaled = true,
 						}),
 					}),
-
-					-- touch only: tapping the card works like holding the key. No button at all on PC/console,
-					-- so the card never blocks the mouse (camera turning with the right button stays smooth).
-					touch and create("TextButton")({
-						Name = "Hit",
-						Size = UDim2.fromScale(1, 1),
-						BackgroundTransparency = 1,
-						Text = "",
-						ZIndex = 10,
-						InputBegan = function(input)
-							if input.UserInputType == Enum.UserInputType.Touch then
-								prompt:InputHoldBegin()
-							end
-						end,
-						InputEnded = function(input)
-							if input.UserInputType == Enum.UserInputType.Touch then
-								prompt:InputHoldEnd()
-							end
-						end,
-					}) or nil,
 				},
 			}),
 		}),
 	})
+
+	-- Left click (PC) and tap (mobile) on the card work like holding the key. They are read straight from
+	-- UserInputService and tested against where the card is on screen (projected from its point in the
+	-- world), so the card itself never captures the mouse or a touch.
+	if prompt.ClickablePrompt and adornee then
+		local pointerHold -- the InputObject currently holding the prompt (mouse button or finger)
+
+		local function isOverCard(input)
+			local point, onScreen = camera:WorldToViewportPoint(anchorPosition(adornee) + CARD_LIFT)
+			if not onScreen then
+				return false
+			end
+			-- InputObject.Position is measured below the top bar, viewport points from the screen's top
+			local position = Vector2.new(input.Position.X, input.Position.Y) + GuiService:GetGuiInset()
+			local half = Vector2.new(CARD_W, CARD_H) * (fit * math.max(scale(), 0) / 2)
+			return math.abs(position.X - point.X) <= half.X and math.abs(position.Y - point.Y) <= half.Y
+		end
+
+		local function release()
+			if pointerHold then
+				pointerHold = nil
+				prompt:InputHoldEnd()
+			end
+		end
+
+		table.insert(
+			connections,
+			UserInputService.InputBegan:Connect(function(input, gameProcessed)
+				local kind = input.UserInputType
+				if kind ~= Enum.UserInputType.MouseButton1 and kind ~= Enum.UserInputType.Touch then
+					return
+				end
+				if gameProcessed or pointerHold or closing() then
+					return
+				end
+				if isOverCard(input) then
+					pointerHold = input
+					prompt:InputHoldBegin()
+				end
+			end)
+		)
+		table.insert(
+			connections,
+			UserInputService.InputEnded:Connect(function(input)
+				if not pointerHold then
+					return
+				end
+				-- the same finger, or the left mouse button
+				local sameTouch = input == pointerHold
+				local mouse = input.UserInputType == Enum.UserInputType.MouseButton1
+					and pointerHold.UserInputType == Enum.UserInputType.MouseButton1
+				if sameTouch or mouse then
+					release()
+				end
+			end)
+		)
+		-- the card can disappear mid-hold (walked away): release the prompt too
+		cleanup(release)
+	end
+
+	return gui
 end
 
 ---- Showing / hiding
