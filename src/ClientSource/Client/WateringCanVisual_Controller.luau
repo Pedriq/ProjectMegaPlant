@@ -23,6 +23,9 @@ local WateringCanVisual_Controller = Knit.CreateController({
 local SCALE_SMOOTHING = 12
 local ROTATION_SMOOTHING = 10
 local TILT_SMOOTHING = 8
+local LEAN_SMOOTHING = 6
+local FOLLOW_STIFFNESS = 30
+local FOLLOW_DAMPING = 7
 
 local entries = {} -- [player] = entry
 
@@ -91,6 +94,9 @@ local function createEntry(player, canId)
 		Scale = 0,
 		Tilt = 0,
 		Rotation = nil,
+		Position = nil,
+		Velocity = Vector3.zero,
+		Lean = nil,
 		SpoutPosition = nil,
 		TopPosition = nil,
 	}
@@ -145,14 +151,38 @@ local function update(player, dt, plantTarget)
 	local scale = math.max(entry.Scale, 0.01)
 	entry.Model:ScaleTo(scale)
 
-	local bob = math.sin(os.clock() * 3 + player.UserId) * 0.12 -- fixed, so a huge can doesn't bob into the head
+	local pouring = WaterState.IsWatering(player) and plantTarget ~= nil
+	local t = os.clock() + player.UserId % 17
 	local height = entry.BaseHeight * scale
-	-- the middle of the can: straight above the head, its bottom a fixed gap over the top of the head
-	local position = head.Position + Vector3.new(0, head.Size.Y / 2 + config.HoverGap + height / 2 + bob, 0)
+
+	-- the middle of the can when resting straight above the head, its bottom a fixed gap over the top of the head
+	local aboveHead = head.Position + Vector3.new(0, head.Size.Y / 2 + config.HoverGap + height / 2, 0)
+
+	-- pet behaviour: the can drifts to a spot beside/behind the player and circles around it playfully;
+	-- while pouring it settles right above the head so the stream starts from the spout
+	local target
+	if pouring then
+		target = aboveHead + Vector3.new(0, math.sin(t * 3) * 0.12, 0)
+	else
+		local reach = 3 + height * 0.5
+		local orbit = Vector3.new(math.sin(t * 1.7) * 0.6, math.sin(t * 2.3) * 0.7 + math.sin(t * 5) * 0.15, math.cos(t * 1.7) * 0.5)
+		local local_ = Vector3.new(0, 0.8, reach) + orbit -- +Z is directly behind the character
+		target = aboveHead + root.CFrame:VectorToWorldSpace(local_)
+	end
+
+	-- floaty underdamped spring toward the target (overshoots a little, like a pet catching up)
+	if not entry.Position or (entry.Position - target).Magnitude > 80 then
+		entry.Position = target
+		entry.Velocity = Vector3.zero
+	end
+	local step = math.min(dt, 1 / 30)
+	local accel = (target - entry.Position) * FOLLOW_STIFFNESS - entry.Velocity * FOLLOW_DAMPING
+	entry.Velocity += accel * step
+	entry.Position += entry.Velocity * step
+	local position = entry.Position
 
 	-- facing: follow the character, or turn toward the plant while pouring
 	local desiredRotation = root.CFrame.Rotation
-	local pouring = WaterState.IsWatering(player) and plantTarget ~= nil
 	if pouring then
 		local flat = Vector3.new(plantTarget.X - position.X, 0, plantTarget.Z - position.Z)
 		if flat.Magnitude > 0.01 then
@@ -165,9 +195,18 @@ local function update(player, dt, plantTarget)
 	local desiredTilt = pouring and math.rad(config.PourTilt) or 0
 	entry.Tilt += (desiredTilt - entry.Tilt) * (1 - math.exp(-TILT_SMOOTHING * dt))
 
+	-- lean into the direction of travel, wobble a bit
+	local localVel = entry.Rotation:VectorToObjectSpace(entry.Velocity)
+	local desiredLean = Vector2.new(
+		math.clamp(localVel.Z * 0.04, -0.5, 0.5),
+		math.clamp(-localVel.X * 0.04, -0.5, 0.5)
+	)
+	entry.Lean = entry.Lean and entry.Lean:Lerp(desiredLean, 1 - math.exp(-LEAN_SMOOTHING * dt)) or desiredLean
+
 	local offset = config.RotationOffset
 	local cframe = CFrame.new(position)
 		* entry.Rotation
+		* CFrame.Angles(entry.Lean.X, 0, entry.Lean.Y + (pouring and 0 or math.sin(t * 4) * 0.08))
 		* CFrame.Angles(-entry.Tilt, 0, 0)
 		* CFrame.Angles(math.rad(offset.X), math.rad(offset.Y), math.rad(offset.Z))
 	local pivot = cframe * CFrame.new(-entry.CenterOffset * scale)
