@@ -22,9 +22,10 @@ local TOTAL_HEIGHT = 0
 for _, definition in ipairs(StatsConfig.Order) do
 	TOTAL_HEIGHT += definition.HudHeight or 1
 end
-local COLUMN_UNIT_ASPECT = 2.2 / 4 -- width / height of one row unit
-local CONTAINER_ASPECT = COLUMN_UNIT_ASPECT * TOTAL_HEIGHT -- width / height of the whole stat column
-local CONTAINER_HEIGHT = 0.66 * TOTAL_HEIGHT / 4
+local COLUMN_UNIT_ASPECT = 2.6 -- width / height of one row unit: [icon][number]
+local CONTAINER_ASPECT = COLUMN_UNIT_ASPECT / TOTAL_HEIGHT -- width / height of the whole stat column
+local CONTAINER_HEIGHT = 0.1 * TOTAL_HEIGHT -- each row unit is 10% of the screen height
+local ICON_END = 0.9 / COLUMN_UNIT_ASPECT + 0.03 -- where the number starts (fraction of row width): right after the square icon
 
 local function formatNumber(value)
 	if value ~= value then
@@ -61,6 +62,7 @@ local function StatText(props)
 		TextColor3 = props.Color or Color3.fromRGB(255, 255, 255),
 		TextStrokeTransparency = 0.4,
 		TextStrokeColor3 = TEXT_STROKE,
+		TextXAlignment = Enum.TextXAlignment.Left,
 	})
 end
 
@@ -116,7 +118,7 @@ local function StatRow(definition, value, layoutOrder, secondary)
 				Name = "Icon",
 				AnchorPoint = Vector2.new(0, 0.5),
 				Position = UDim2.fromScale(0, 0.5),
-				Size = UDim2.fromScale(0.3, hasSecondary and 0.64 or 1),
+				Size = UDim2.fromScale(1, 0.9 / (definition.HudHeight or 1)), -- one row unit tall, same size in every row
 				BackgroundTransparency = 1,
 				Image = definition.Icon,
 				ScaleType = Enum.ScaleType.Fit,
@@ -126,8 +128,8 @@ local function StatRow(definition, value, layoutOrder, secondary)
 
 			StatText({
 				Name = "Value",
-				Position = hasSecondary and UDim2.fromScale(0.12, 0.04) or UDim2.fromScale(0.12, 0.075),
-				Size = hasSecondary and UDim2.fromScale(0.86, 0.56) or UDim2.fromScale(0.86, 0.85),
+				Position = hasSecondary and UDim2.fromScale(ICON_END, 0.04) or UDim2.fromScale(ICON_END, 0.075),
+				Size = hasSecondary and UDim2.fromScale(1 - ICON_END, 0.56) or UDim2.fromScale(1 - ICON_END, 0.85),
 				Text = function()
 					return formatNumber(math.floor(displayed() + 0.5))
 				end,
@@ -135,8 +137,8 @@ local function StatRow(definition, value, layoutOrder, secondary)
 
 			hasSecondary and StatText({
 				Name = "Secondary",
-				Position = UDim2.fromScale(0.12, 0.64),
-				Size = UDim2.fromScale(0.62, 0.28),
+				Position = UDim2.fromScale(ICON_END, 0.64),
+				Size = UDim2.fromScale(0.6 * (1 - ICON_END), 0.28),
 				Color = Color3.fromRGB(190, 232, 255),
 				Text = secondary,
 			}) or nil,

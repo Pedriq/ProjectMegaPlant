@@ -4,7 +4,7 @@
 
 	Key         - key inside profile.Data.Stats (used by Stats_Service methods)
 	DisplayName - name of the value object inside `leaderstats`
-	Icon        - placeholder image, replace with real asset ids later
+	Icon        - image asset id shown on the HUD
 	ValueClass  - class of the value object created in leaderstats
 	HudHeight   - relative height of the stat's row on the HUD (default 1)
 
@@ -17,8 +17,6 @@ local BalanceConfig = require(game:GetService("ReplicatedStorage").SharedSource.
 
 local StatsConfig = {}
 
--- Roblox built-in placeholder image; swap each stat's Icon for a real asset id later
-local PLACEHOLDER_ICON = "rbxasset://textures/ui/GuiImagePlaceholder.png"
 
 StatsConfig.Folder = "leaderstats"
 
@@ -26,7 +24,7 @@ StatsConfig.Order = {
 	{
 		Key = "Strength",
 		DisplayName = "Strength",
-		Icon = PLACEHOLDER_ICON, -- TODO: strength icon
+		Icon = "rbxassetid://140061301930502",
 		ValueClass = "IntValue",
 		Default = 0,
 		Min = 0,
@@ -35,7 +33,7 @@ StatsConfig.Order = {
 	{
 		Key = "Mobility",
 		DisplayName = "Mobility",
-		Icon = PLACEHOLDER_ICON, -- TODO: mobility icon
+		Icon = "rbxassetid://90668448856016",
 		ValueClass = "IntValue",
 		Default = 0,
 		Min = 0,
@@ -43,7 +41,7 @@ StatsConfig.Order = {
 	{
 		Key = "Coins",
 		DisplayName = "Coins",
-		Icon = PLACEHOLDER_ICON, -- TODO: coins icon
+		Icon = "rbxassetid://86442965519961",
 		ValueClass = "IntValue",
 		Default = 0,
 		Min = 0,
@@ -51,7 +49,7 @@ StatsConfig.Order = {
 	{
 		Key = "PlantsGrown",
 		DisplayName = "Plants Grown",
-		Icon = PLACEHOLDER_ICON, -- TODO: plants grown icon
+		Icon = "rbxassetid://109442287636935",
 		ValueClass = "IntValue",
 		Default = 0,
 		Min = 0,
