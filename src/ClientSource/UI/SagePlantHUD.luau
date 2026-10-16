@@ -13,6 +13,34 @@ local C = {
 	Weight = Color3.fromRGB(204, 221, 181),
 }
 
+
+local WHITE, BLACK = Color3.new(1, 1, 1), Color3.new(0, 0, 0)
+
+-- Panel colors for a plant rarity: the body is a light tint of the rarity color with dark ink, so the text always
+-- keeps its contrast; the border, chip and progress bar carry the rarity's own colors. Common keeps the sage look.
+local DEFAULT_THEME = {
+	Body = C.Body, Border = C.Border, Text = C.Text, Muted = C.Muted,
+	Plate = C.Plate, Track = C.Track, Fill = C.Fill, Chip = C.Badge, BorderThickness = 1,
+}
+
+local function themeOf(rarity)
+	if not rarity or rarity.Order == 1 then
+		return DEFAULT_THEME
+	end
+	local color, dark = rarity.Color, rarity.DarkColor
+	return {
+		Body = color:Lerp(WHITE, 0.72),
+		Border = color,
+		Text = dark:Lerp(BLACK, 0.55),
+		Muted = dark:Lerp(BLACK, 0.25),
+		Plate = color:Lerp(WHITE, 0.5),
+		Track = color:Lerp(WHITE, 0.4),
+		Fill = dark,
+		Chip = color,
+		BorderThickness = 1.5 + (rarity.Order - 1) * 0.6, -- rarer = bolder frame
+	}
+end
+
 local function corner(radius)
 	return create("UICorner")({ CornerRadius = UDim.new(radius, 0) })
 end
@@ -55,6 +83,10 @@ local function stat(name, title, value, order, body, ink)
 end
 
 return function(props)
+	local function theme()
+		return themeOf(props.Rarity())
+	end
+
 	return create("ScreenGui")({
 		Name = "PlantHUD", ResetOnSpawn = false, IgnoreGuiInset = true,
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling, DisplayOrder = 1,
@@ -67,13 +99,16 @@ return function(props)
 			create("UIScale")({ Scale = props.PopScale }),
 			create("Frame")({
 				Name = "Panel", Size = UDim2.fromScale(1, 1),
-				BackgroundColor3 = C.Body, BorderSizePixel = 0,
+				BackgroundColor3 = function() return theme().Body end, BackgroundTransparency = 0.12, BorderSizePixel = 0,
 				corner(20 / 154),
-				create("UIStroke")({ Color = C.Border, Thickness = 1 }),
+				create("UIStroke")({
+						Color = function() return theme().Border end,
+						Thickness = function() return theme().BorderThickness end,
+					}),
 				create("Frame")({
 					Name = "IconPlate", Position = UDim2.fromScale(14 / 424, 14 / 154),
 					Size = UDim2.fromScale(64 / 424, 64 / 154),
-					BackgroundColor3 = C.Plate, BorderSizePixel = 0, corner(15 / 64),
+					BackgroundColor3 = function() return theme().Plate end, BorderSizePixel = 0, corner(15 / 64),
 					function()
 						if props.IsSelecting() then
 							return label("Unknown", "?", 0.2, 0.2, 0.6, 0.6, C.Text, Enum.TextXAlignment.Center)
@@ -84,40 +119,37 @@ return function(props)
 						})
 					end,
 				}),
-				label("PlantName", props.PlantName, 90 / 424, 14 / 154, 224 / 424, 28 / 154),
+				label("PlantName", props.PlantName, 90 / 424, 14 / 154, 224 / 424, 28 / 154,
+						function() return theme().Text end),
 				create("Frame")({
 					Name = "RarityChip", Position = UDim2.fromScale(330 / 424, 16 / 154),
 					Size = UDim2.fromScale(80 / 424, 24 / 154), BorderSizePixel = 0,
 					Visible = function() return not props.IsSelecting() and props.Rarity() ~= nil end,
-					BackgroundColor3 = function()
-						local rarity = props.Rarity()
-						if not rarity or rarity.Order == 1 then return C.Badge end
-						return rarity.Color:Lerp(C.Badge, 0.65)
-					end,
+					BackgroundColor3 = function() return theme().Chip end,
 					corner(0.5),
 					texture(0.5),
 					label("Rarity", function()
 						local rarity = props.Rarity()
 						return rarity and rarity.DisplayName or ""
-					end, 0.08, 0.18, 0.84, 0.64, C.Muted, Enum.TextXAlignment.Center),
+					end, 0.08, 0.18, 0.84, 0.64, function() return theme().Text end, Enum.TextXAlignment.Center),
 				}),
 				label("TimerCaption", function() return props.IsGrowing() and "Time left" or "" end,
-					90 / 424, 48 / 154, 75 / 424, 15 / 154, C.Muted),
+					90 / 424, 48 / 154, 75 / 424, 15 / 154, function() return theme().Muted end),
 				label("Timer", props.TimerText, 172 / 424, 48 / 154, 238 / 424, 16 / 154,
-					C.Text, Enum.TextXAlignment.Right),
+					function() return theme().Text end, Enum.TextXAlignment.Right),
 				create("Frame")({
 					Name = "Progress", Size = UDim2.fromScale(320 / 424, 8 / 154),
 					Position = function()
 						local offset = props.Shake.Offset()
 						return UDim2.fromScale(90 / 424 + offset.X, 70 / 154 + offset.Y)
 					end,
-					Rotation = props.Shake.Rotation, BackgroundColor3 = C.Track,
+					Rotation = props.Shake.Rotation, BackgroundColor3 = function() return theme().Track end,
 					BorderSizePixel = 0, ClipsDescendants = true, corner(0.5),
 					create("Frame")({
 						Name = "Fill", BorderSizePixel = 0,
 						Size = function() return UDim2.fromScale(math.clamp(props.Progress(), 0, 1), 1) end,
 						BackgroundColor3 = function()
-							return props.IsFinished() and Color3.fromRGB(188, 148, 53) or C.Fill
+							return props.IsFinished() and Color3.fromRGB(188, 148, 53) or theme().Fill
 						end,
 						corner(0.5),
 						create("Frame")({
