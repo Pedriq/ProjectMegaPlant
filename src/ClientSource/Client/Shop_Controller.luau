@@ -7,7 +7,6 @@ local Knit = require(ReplicatedStorage.Packages.Knit)
 local Vide = require(ReplicatedStorage.Packages.Vide)
 local StatsConfig = require(ReplicatedStorage.SharedSource.Datas.StatsConfig)
 local UpgradesConfig = require(ReplicatedStorage.SharedSource.Datas.UpgradesConfig)
-local Plastic = require(ReplicatedStorage.ClientSource.UI.Plastic)
 local ShopCamera = require(ReplicatedStorage.ClientSource.UI.ShopCamera)
 local WaitFor = require(ReplicatedStorage.ClientSource.Utilities.WaitFor)
 
@@ -21,6 +20,10 @@ local source = Vide.source
 
 	Levels come from the replicated player attributes, coins from leaderstats, and a purchase is just a
 	request: Upgrade_Service decides whether it succeeds.
+
+	Look: Figma "Upgrade Shop · Roblox · Ref Style" (Task-UIKIT, node 2560:1316). The panel is laid out in the
+	design's pixels on a fixed canvas and a UIScale fits it to the screen, so outlines, gradients and text keep
+	the exact proportions of the design on any resolution.
 ]]
 local Shop_Controller = Knit.CreateController({
 	Name = "Shop_Controller",
@@ -35,28 +38,251 @@ local shopPart -- the part the open shop belongs to (for the "walked away" check
 local shopPrompt
 local distanceConnection
 
-local BUY_READY = Color3.fromRGB(88, 184, 110)
-local BUY_READY_BORDER = Color3.fromRGB(36, 120, 48)
-local BUY_DISABLED = Color3.fromRGB(160, 172, 164)
-local BUY_DISABLED_BORDER = Color3.fromRGB(78, 82, 96)
-local BUY_MAX = Color3.fromRGB(240, 196, 94)
-local BUY_MAX_BORDER = Color3.fromRGB(170, 100, 20)
-
 local function formatNumber(value)
 	local text = tostring(math.floor(value + 0.5))
 	return (text:reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", ""))
 end
 
+---- Style
+
+local function rgb(r, g, b)
+	return Color3.fromRGB(r, g, b)
+end
+
+local FONT = Font.new("rbxasset://fonts/families/Nunito.json", Enum.FontWeight.ExtraBold)
+local FONT_BOLD = Font.new("rbxasset://fonts/families/Nunito.json", Enum.FontWeight.Bold)
+
+local WHITE = Color3.new(1, 1, 1)
+local BLACK = rgb(10, 10, 10)
+
+-- vertical gradients, light on top (same stops as the Figma frame)
+local Colors = {
+	Panel = ColorSequence.new(rgb(107, 98, 72), rgb(75, 70, 50)),
+	Header = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, rgb(114, 242, 95)),
+		ColorSequenceKeypoint.new(0.5, rgb(39, 194, 63)),
+		ColorSequenceKeypoint.new(1, rgb(12, 154, 45)),
+	}),
+	HeaderBottom = rgb(12, 154, 45),
+	Gold = ColorSequence.new(rgb(255, 224, 74), rgb(242, 140, 0)),
+	Red = ColorSequence.new(rgb(232, 71, 95), rgb(142, 18, 48)),
+	Lime = ColorSequence.new(rgb(182, 255, 74), rgb(63, 178, 30)),
+	BuyReady = ColorSequence.new(rgb(124, 242, 90), rgb(24, 160, 52)),
+	BuyDisabled = ColorSequence.new(rgb(228, 228, 228), rgb(140, 140, 140)),
+	CoinFace = ColorSequence.new(rgb(255, 230, 110), rgb(232, 160, 20)),
+}
+local NEXT_VALUE_TEXT = rgb(20, 62, 10)
+local DISABLED_TEXT = rgb(70, 70, 70)
+local DEFAULT_ACCENT = rgb(96, 168, 232)
+
+-- canvas layout, in design pixels
+local CANVAS_W = 620
+local HEADER_H = 84
+local DIVIDER_H = 4
+local PAD_X = 20
+local PAD_TOP = 22
+local CARD_H = 124
+local CARD_GAP = 12
+local HINT_GAP = 12
+local HINT_H = 18
+local PAD_BOTTOM = 24
+local CARD_COUNT = #UpgradesConfig.Order
+local CARDS_Y = HEADER_H + DIVIDER_H + PAD_TOP
+local CARDS_H = CARD_COUNT * CARD_H + (CARD_COUNT - 1) * CARD_GAP
+local CANVAS_H = CARDS_Y + CARDS_H + HINT_GAP + HINT_H + PAD_BOTTOM
+
+-- the largest share of the screen the panel may take
+local MAX_SCREEN_W = 0.56
+local MAX_SCREEN_H = 0.84
+
+---- UI kit (local to the shop)
+
+local function append(props, children)
+	if children then
+		for _, child in ipairs(children) do
+			props[#props + 1] = child
+		end
+	end
+	return props
+end
+
+local function Corner(px)
+	return create("UICorner")({ CornerRadius = UDim.new(0, px) })
+end
+
+local function Gradient(colors)
+	return create("UIGradient")({ Rotation = 90, Color = colors })
+end
+
+local function Outline(thickness)
+	return create("UIStroke")({
+		Thickness = thickness,
+		Color = BLACK,
+		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+		LineJoinMode = Enum.LineJoinMode.Round,
+	})
+end
+
+--- Glossy band over the top of a surface: white fading out downwards. Sits behind the surface's content.
+local function Sheen(alpha, heightScale, corner)
+	return create("Frame")({
+		Name = "Sheen",
+		Position = UDim2.fromOffset(2, 2),
+		Size = UDim2.new(1, -4, heightScale, 0),
+		BackgroundColor3 = WHITE,
+		BorderSizePixel = 0,
+		ZIndex = 0,
+
+		Corner(corner),
+		create("UIGradient")({
+			Rotation = 90,
+			Transparency = NumberSequence.new(1 - alpha, 1),
+		}),
+	})
+end
+
+--- Surface with a vertical gradient, a thick black outline and an optional sheen.
+--- props: Name, AnchorPoint, Position, Size, AutomaticSize, LayoutOrder, Colors (ColorSequence or function),
+---        Stroke (px), Corner (px, default 4), Sheen (alpha), SheenHeight (0-1), Children
+local function Box(props)
+	local corner = props.Corner or 4
+	local frame = {
+		Name = props.Name,
+		AnchorPoint = props.AnchorPoint,
+		Position = props.Position,
+		Size = props.Size,
+		AutomaticSize = props.AutomaticSize,
+		LayoutOrder = props.LayoutOrder,
+		BackgroundColor3 = WHITE,
+		BorderSizePixel = 0,
+
+		Corner(corner),
+		Gradient(props.Colors),
+	}
+	if props.Stroke then
+		frame[#frame + 1] = Outline(props.Stroke)
+	end
+	if props.Sheen then
+		frame[#frame + 1] = Sheen(props.Sheen, props.SheenHeight or 0.42, math.max(corner - 1, 0))
+	end
+	return create("Frame")(append(frame, props.Children))
+end
+
+--- Text with an optional black outline and a hard drop shadow (both in design pixels).
+--- props: Name, AnchorPoint, Position, Size, AutoWidth (+ Height), LayoutOrder, Text, TextSize, Font, Color,
+---        Transparency, Stroke, Shadow, ShadowTransparency, Outlined (function -> bool, toggles stroke+shadow),
+---        XAlignment
+local function Text(props)
+	local autoWidth = props.AutoWidth == true
+
+	local function label(isShadow)
+		local children = {}
+		if props.Stroke then
+			children[1] = create("UIStroke")({
+				Thickness = props.Stroke,
+				Color = BLACK,
+				LineJoinMode = Enum.LineJoinMode.Round,
+				Transparency = isShadow and (props.ShadowTransparency or 0) or 0,
+				Enabled = props.Outlined,
+			})
+		end
+		return create("TextLabel")(append({
+			Name = isShadow and "Shadow" or "Text",
+			Position = isShadow and UDim2.fromOffset(0, props.Shadow) or UDim2.new(),
+			Size = autoWidth and UDim2.fromScale(0, 1) or UDim2.fromScale(1, 1),
+			AutomaticSize = autoWidth and Enum.AutomaticSize.X or Enum.AutomaticSize.None,
+			BackgroundTransparency = 1,
+			FontFace = props.Font or FONT,
+			Text = props.Text,
+			TextSize = props.TextSize,
+			TextColor3 = isShadow and BLACK or (props.Color or WHITE),
+			TextTransparency = isShadow and (props.ShadowTransparency or 0) or (props.Transparency or 0),
+			TextXAlignment = props.XAlignment or Enum.TextXAlignment.Left,
+			TextYAlignment = Enum.TextYAlignment.Center,
+			Visible = isShadow and props.Outlined or nil,
+			ZIndex = isShadow and 1 or 2,
+		}, children))
+	end
+
+	return create("Frame")({
+		Name = props.Name or "Label",
+		AnchorPoint = props.AnchorPoint,
+		Position = props.Position,
+		Size = props.Size or UDim2.fromOffset(0, props.Height),
+		AutomaticSize = autoWidth and Enum.AutomaticSize.X or Enum.AutomaticSize.None,
+		LayoutOrder = props.LayoutOrder,
+		BackgroundTransparency = 1,
+
+		props.Shadow and label(true) or nil,
+		label(false),
+	})
+end
+
+--- Round gold coin with a "$".
+local function Coin(size, layoutOrder)
+	return create("Frame")({
+		Name = "Coin",
+		Size = UDim2.fromOffset(size, size),
+		LayoutOrder = layoutOrder,
+		BackgroundColor3 = WHITE,
+		BorderSizePixel = 0,
+
+		create("UICorner")({ CornerRadius = UDim.new(0.5, 0) }),
+		Gradient(Colors.CoinFace),
+		create("UIStroke")({ Thickness = 2, Color = rgb(122, 74, 0) }),
+		create("TextLabel")({
+			Name = "Sign",
+			Size = UDim2.fromScale(1, 1),
+			BackgroundTransparency = 1,
+			FontFace = FONT,
+			Text = "$",
+			TextSize = math.floor(size * 0.62),
+			TextColor3 = rgb(138, 90, 0),
+		}),
+	})
+end
+
+--- Horizontal row whose items are centered vertically.
+local function Row(props)
+	return create("Frame")(append({
+		Name = props.Name or "Row",
+		AnchorPoint = props.AnchorPoint,
+		Position = props.Position,
+		Size = props.Size,
+		AutomaticSize = props.AutomaticSize,
+		BackgroundTransparency = 1,
+
+		create("UIListLayout")({
+			FillDirection = Enum.FillDirection.Horizontal,
+			SortOrder = Enum.SortOrder.LayoutOrder,
+			HorizontalAlignment = props.HorizontalAlignment or Enum.HorizontalAlignment.Left,
+			VerticalAlignment = Enum.VerticalAlignment.Center,
+			Padding = UDim.new(0, props.Gap or 8),
+		}),
+	}, props.Children))
+end
+
+local function HitButton(onActivated)
+	return create("TextButton")({
+		Name = "Hit",
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+		Text = "",
+		ZIndex = 10,
+		Activated = onActivated,
+	})
+end
+
 ---- UI
 
---- One upgrade card. Layout (all Scale):
----   [icon]  Name                 [LV n]   |  [ 💰 price ]
----           caption (what it does)        |  [  UPGRADE  ]
----           x1.24  ➜  x1.45  (big)
---- Every upgrade has its own accent color and glyph (UpgradesConfig), so the cards are told apart at a glance.
+--- One upgrade card (580 x 124):
+---   [icon]  Name                      [LV n]  |  [ $ price ]
+---           caption (what it does)            |  [ UPGRADE ]
+---           x1.24  →  [x1.45]
+--- Every upgrade keeps its own accent color (UpgradesConfig), so the cards are told apart at a glance.
 local function UpgradeCard(upgradeId, layoutOrder, level, coins, onBuy)
 	local config = UpgradesConfig.Upgrades[upgradeId]
-	local accent = config.Accent or Plastic.Colors.PanelBody
+	local accent = config.Accent or DEFAULT_ACCENT
 
 	local function price()
 		return UpgradesConfig.GetPrice(upgradeId, level())
@@ -74,155 +300,347 @@ local function UpgradeCard(upgradeId, layoutOrder, level, coins, onBuy)
 			Name = "Icon",
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			Position = UDim2.fromScale(0.5, 0.5),
-			Size = UDim2.fromScale(0.78, 0.78),
+			Size = UDim2.fromOffset(38, 38),
 			BackgroundTransparency = 1,
 			Image = config.IconImage,
 			ScaleType = Enum.ScaleType.Fit,
 		})
 	else
-		icon = Plastic.Label({
+		icon = create("TextLabel")({
 			Name = "Glyph",
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			Position = UDim2.fromScale(0.5, 0.5),
-			Size = UDim2.fromScale(0.72, 0.72),
+			Size = UDim2.fromOffset(38, 38),
+			BackgroundTransparency = 1,
 			Text = config.Glyph or "?",
+			TextScaled = true,
+			TextColor3 = WHITE,
 		})
 	end
 
-	return Plastic.Panel({
+	return Box({
 		Name = upgradeId,
 		LayoutOrder = layoutOrder,
-		-- the cards share the height of the list (4% gaps), whatever the number of upgrades
-		Size = UDim2.fromScale(1, (1 - 0.04 * (#UpgradesConfig.Order - 1)) / #UpgradesConfig.Order),
-		BodyColor = accent,
-		Corner = 0.2,
+		Size = UDim2.new(1, 0, 0, CARD_H),
+		Colors = ColorSequence.new(accent:Lerp(WHITE, 0.35), accent:Lerp(BLACK, 0.2)),
+		Stroke = 3,
+		Corner = 4,
+		Sheen = 0.3,
+		SheenHeight = 0.42,
 		Children = {
 			-- icon plate in a deeper shade of the accent
-			Plastic.Panel({
+			Box({
 				Name = "IconPlate",
-				AnchorPoint = Vector2.new(0, 0.5),
-				Position = UDim2.fromScale(0.025, 0.5),
-				Size = UDim2.fromScale(0.15, 0.68),
-				BodyColor = accent:Lerp(Color3.new(0, 0, 0), 0.18),
-				Style = "Accent",
-				Corner = 0.3,
-				Studs = false,
-				Children = {
-					create("UIAspectRatioConstraint")({ AspectRatio = 1 }),
-					icon,
-				},
+				Position = UDim2.fromOffset(18, 30),
+				Size = UDim2.fromOffset(56, 64),
+				Colors = ColorSequence.new(accent:Lerp(BLACK, 0.05), accent:Lerp(BLACK, 0.45)),
+				Stroke = 3,
+				Corner = 4,
+				Sheen = 0.25,
+				SheenHeight = 0.45,
+				Children = { icon },
 			}),
 
 			-- 1) name (the strongest text of the card)
-			Plastic.Label({
+			Text({
 				Name = "Name",
-				Position = UDim2.fromScale(0.2, 0.08),
-				Size = UDim2.fromScale(0.34, 0.3),
-				XAlignment = Enum.TextXAlignment.Left,
+				Position = UDim2.fromOffset(88, 16),
+				Size = UDim2.fromOffset(300, 28),
 				Text = config.DisplayName,
+				TextSize = 20,
+				Stroke = 2,
+				Shadow = 2,
 			}),
-			-- 2) current level, a small chip next to the name
-			Plastic.Panel({
+			-- 2) current level, a quiet chip at the end of the name line
+			create("Frame")({
 				Name = "LevelChip",
-				Position = UDim2.fromScale(0.555, 0.11),
-				Size = UDim2.fromScale(0.095, 0.24),
-				BodyColor = accent:Lerp(Color3.new(0, 0, 0), 0.25),
-				Style = "Accent",
-				Corner = 0.5,
-				Studs = false,
+				AnchorPoint = Vector2.new(1, 0),
+				Position = UDim2.fromOffset(442, 19),
+				Size = UDim2.fromOffset(0, 22),
+				AutomaticSize = Enum.AutomaticSize.X,
+				BackgroundColor3 = Color3.new(0, 0, 0),
+				BackgroundTransparency = 0.7,
+				BorderSizePixel = 0,
+
+				Corner(4),
+				create("UIPadding")({ PaddingLeft = UDim.new(0, 10), PaddingRight = UDim.new(0, 10) }),
+				Text({
+					Name = "Level",
+					AutoWidth = true,
+					Height = 22,
+					Text = function()
+						return ("LV %d"):format(level())
+					end,
+					TextSize = 11,
+					Transparency = 0.05,
+				}),
+			}),
+			-- 3) what it improves, small and quiet (no outline)
+			Text({
+				Name = "Caption",
+				Position = UDim2.fromOffset(88, 47),
+				Size = UDim2.fromOffset(340, 18),
+				Text = config.Description,
+				TextSize = 13,
+				Font = FONT_BOLD,
+				Transparency = 0.1,
+				Shadow = 1,
+				ShadowTransparency = 0.65,
+			}),
+			-- 4) THE benefit: current value, then the next level on a lime chip
+			Row({
+				Name = "Benefit",
+				Position = UDim2.fromOffset(88, 70),
+				Size = UDim2.fromOffset(340, 32),
+				Gap = 10,
 				Children = {
-					Plastic.Label({
-						Name = "Level",
-						AnchorPoint = Vector2.new(0.5, 0.5),
-						Position = UDim2.fromScale(0.5, 0.5),
-						Size = UDim2.fromScale(0.86, 0.66),
+					Text({
+						Name = "Current",
+						LayoutOrder = 1,
+						AutoWidth = true,
+						Height = 30,
 						Text = function()
-							return ("LV %d"):format(level())
+							return parts().Current
 						end,
+						TextSize = 21,
+						Transparency = 0.2,
+						Shadow = 1,
+						ShadowTransparency = 0.65,
+					}),
+					Text({
+						Name = "Arrow",
+						LayoutOrder = 2,
+						AutoWidth = true,
+						Height = 30,
+						Text = "→",
+						TextSize = 20,
+						Transparency = 0.15,
+					}),
+					Box({
+						Name = "Next",
+						LayoutOrder = 3,
+						Size = UDim2.fromOffset(0, 29),
+						AutomaticSize = Enum.AutomaticSize.X,
+						Colors = Colors.Lime,
+						Stroke = 2.5,
+						Corner = 3,
+						Children = {
+							create("UIPadding")({ PaddingLeft = UDim.new(0, 12), PaddingRight = UDim.new(0, 12) }),
+							Text({
+								Name = "Value",
+								AutoWidth = true,
+								Height = 29,
+								Text = function()
+									return parts().Next
+								end,
+								TextSize = 21,
+								Color = NEXT_VALUE_TEXT,
+							}),
+						},
 					}),
 				},
 			}),
-			-- 3) what it improves, small and quiet
-			Plastic.Label({
-				Name = "Caption",
-				Position = UDim2.fromScale(0.2, 0.4),
-				Size = UDim2.fromScale(0.45, 0.17),
-				XAlignment = Enum.TextXAlignment.Left,
-				Color = Color3.fromRGB(236, 244, 240),
-				Text = function()
-					return config.Description
-				end,
-			}),
-			-- 4) THE benefit: current value big, the next level in green
-			Plastic.Label({
-				Name = "Benefit",
-				Position = UDim2.fromScale(0.2, 0.6),
-				Size = UDim2.fromScale(0.45, 0.32),
-				XAlignment = Enum.TextXAlignment.Left,
-				RichText = true,
-				Text = function()
-					local effect = parts()
-					return ('%s  <font color="#c6ffd0">➜  %s</font>'):format(effect.Current, effect.Next)
-				end,
-			}),
 
-			-- thin divider: information on the left, buying on the right
-			create("Frame")({
-				Name = "Divider",
-				AnchorPoint = Vector2.new(0.5, 0.5),
-				Position = UDim2.fromScale(0.672, 0.5),
-				Size = UDim2.fromScale(0.004, 0.66),
-				BackgroundColor3 = Color3.new(1, 1, 1),
-				BackgroundTransparency = 0.7,
-				BorderSizePixel = 0,
-			}),
-
-			-- buy block: price on top, the action below
-			Plastic.Panel({
+			-- buy block: price on top, the action below; green when affordable, grey otherwise
+			Box({
 				Name = "BuyButton",
 				AnchorPoint = Vector2.new(1, 0.5),
-				Position = UDim2.fromScale(0.975, 0.5),
-				Size = UDim2.fromScale(0.28, 0.72),
-				Corner = 0.3,
-				Style = "Accent",
-				BodyColor = function()
-					return affordable() and BUY_READY or BUY_DISABLED
+				Position = UDim2.new(1, -14, 0.5, 0),
+				Size = UDim2.fromOffset(102, 76),
+				Colors = function()
+					return affordable() and Colors.BuyReady or Colors.BuyDisabled
 				end,
+				Stroke = 3,
+				Corner = 3,
+				Sheen = 0.45,
+				SheenHeight = 0.4,
 				Children = {
-					Plastic.Label({
+					Row({
 						Name = "Price",
-						AnchorPoint = Vector2.new(0.5, 0),
-						Position = UDim2.fromScale(0.5, 0.08),
-						Size = UDim2.fromScale(0.86, 0.5),
-						Color = function()
-							return affordable() and Color3.new(1, 1, 1) or Color3.fromRGB(255, 226, 226)
-						end,
-						Text = function()
-							return "💰 " .. formatNumber(price())
-						end,
+						Position = UDim2.fromOffset(0, 12),
+						Size = UDim2.new(1, 0, 0, 30),
+						HorizontalAlignment = Enum.HorizontalAlignment.Center,
+						Gap = 5,
+						Children = {
+							Coin(20, 1),
+							Text({
+								Name = "Amount",
+								LayoutOrder = 2,
+								AutoWidth = true,
+								Height = 30,
+								Text = function()
+									return formatNumber(price())
+								end,
+								TextSize = 22,
+								Color = function()
+									return affordable() and WHITE or DISABLED_TEXT
+								end,
+								Stroke = 2,
+								Shadow = 2,
+								Outlined = affordable,
+							}),
+						},
 					}),
-					Plastic.Label({
+					Text({
 						Name = "Action",
-						AnchorPoint = Vector2.new(0.5, 0),
-						Position = UDim2.fromScale(0.5, 0.6),
-						Size = UDim2.fromScale(0.7, 0.28),
-						Color = Color3.fromRGB(240, 248, 240),
+						Position = UDim2.fromOffset(0, 46),
+						Size = UDim2.new(1, 0, 0, 16),
+						XAlignment = Enum.TextXAlignment.Center,
 						Text = "UPGRADE",
+						TextSize = 12,
+						Color = function()
+							return affordable() and WHITE or DISABLED_TEXT
+						end,
+						Stroke = 1.5,
+						Shadow = 1,
+						Outlined = affordable,
 					}),
 					-- hit area; the server decides if the purchase works
-					create("TextButton")({
-						Name = "Hit",
-						Size = UDim2.fromScale(1, 1),
-						BackgroundTransparency = 1,
-						Text = "",
-						ZIndex = 10,
-						Activated = function()
-							onBuy(upgradeId)
-						end,
-					}),
+					HitButton(function()
+						onBuy(upgradeId)
+					end),
 				},
 			}),
 		},
+	})
+end
+
+local function Header(coins, onClose)
+	local shownCoins = Vide.spring(function()
+		return coins()
+	end, 0.3, 1)
+
+	return create("Frame")({
+		Name = "Header",
+		Size = UDim2.fromOffset(CANVAS_W, HEADER_H),
+		BackgroundColor3 = WHITE,
+		BorderSizePixel = 0,
+
+		Corner(6),
+		Gradient(Colors.Header),
+		-- squares off the bottom corners (the black divider sits right below)
+		create("Frame")({
+			Name = "BottomFill",
+			Position = UDim2.new(0, 0, 1, -8),
+			Size = UDim2.new(1, 0, 0, 8),
+			BackgroundColor3 = Colors.HeaderBottom,
+			BorderSizePixel = 0,
+			ZIndex = 0,
+		}),
+		-- gloss: bright band over the top half...
+		create("Frame")({
+			Name = "Gloss",
+			Size = UDim2.fromScale(1, 0.5),
+			BackgroundColor3 = WHITE,
+			BorderSizePixel = 0,
+			ZIndex = 0,
+
+			Corner(6),
+			create("UIGradient")({
+				Rotation = 90,
+				Transparency = NumberSequence.new(0.7, 0.96),
+			}),
+		}),
+		-- ...and two diagonal shine streaks
+		create("Frame")({
+			Name = "Shine",
+			Size = UDim2.fromScale(1, 1),
+			BackgroundColor3 = WHITE,
+			BorderSizePixel = 0,
+			ZIndex = 0,
+
+			Corner(6),
+			create("UIGradient")({
+				Rotation = 62,
+				Transparency = NumberSequence.new({
+					NumberSequenceKeypoint.new(0, 1),
+					NumberSequenceKeypoint.new(0.5, 1),
+					NumberSequenceKeypoint.new(0.501, 0.88),
+					NumberSequenceKeypoint.new(0.56, 0.88),
+					NumberSequenceKeypoint.new(0.561, 1),
+					NumberSequenceKeypoint.new(0.6, 1),
+					NumberSequenceKeypoint.new(0.601, 0.9),
+					NumberSequenceKeypoint.new(0.62, 0.9),
+					NumberSequenceKeypoint.new(0.621, 1),
+					NumberSequenceKeypoint.new(1, 1),
+				}),
+			}),
+		}),
+
+		Text({
+			Name = "Title",
+			Position = UDim2.fromOffset(28, 0),
+			Size = UDim2.fromOffset(360, HEADER_H),
+			Text = "Upgrade Shop",
+			TextSize = 36,
+			Stroke = 3,
+			Shadow = 3,
+		}),
+
+		-- coin balance (grows to the left for big numbers)
+		Box({
+			Name = "Coins",
+			AnchorPoint = Vector2.new(1, 0.5),
+			Position = UDim2.new(0, CANVAS_W - 28 - 40 - 12, 0.5, 0),
+			Size = UDim2.fromOffset(0, 42),
+			AutomaticSize = Enum.AutomaticSize.X,
+			Colors = Colors.Gold,
+			Stroke = 3,
+			Corner = 3,
+			Sheen = 0.5,
+			SheenHeight = 0.45,
+			Children = {
+				create("UISizeConstraint")({ MinSize = Vector2.new(100, 0) }),
+				Row({
+					Name = "Content",
+					Size = UDim2.fromScale(0, 1),
+					AutomaticSize = Enum.AutomaticSize.X,
+					HorizontalAlignment = Enum.HorizontalAlignment.Center,
+					Gap = 8,
+					Children = {
+						create("UIPadding")({ PaddingLeft = UDim.new(0, 14), PaddingRight = UDim.new(0, 14) }),
+						Coin(24, 1),
+						Text({
+							Name = "Amount",
+							LayoutOrder = 2,
+							AutoWidth = true,
+							Height = 42,
+							Text = function()
+								return formatNumber(shownCoins())
+							end,
+							TextSize = 22,
+							Stroke = 2,
+							Shadow = 2,
+						}),
+					},
+				}),
+			},
+		}),
+
+		-- close button
+		Box({
+			Name = "Close",
+			AnchorPoint = Vector2.new(1, 0.5),
+			Position = UDim2.new(0, CANVAS_W - 28, 0.5, 0),
+			Size = UDim2.fromOffset(40, 40),
+			Colors = Colors.Red,
+			Stroke = 3,
+			Corner = 3,
+			Sheen = 0.5,
+			SheenHeight = 0.45,
+			Children = {
+				Text({
+					Name = "X",
+					Size = UDim2.fromScale(1, 1),
+					XAlignment = Enum.TextXAlignment.Center,
+					Text = "X",
+					TextSize = 24,
+					Stroke = 2,
+					Shadow = 2,
+				}),
+				HitButton(onClose),
+			},
+		}),
 	})
 end
 
@@ -230,13 +648,30 @@ local function ShopUI(levels, coins, onBuy, onClose)
 	local scale = Vide.spring(function()
 		return isOpen() and 1 or 0
 	end, 0.3, 0.6)
-	local shownCoins = Vide.spring(function()
-		return coins()
-	end, 0.3, 1)
+
+	-- fit the fixed canvas into the screen
+	local camera = workspace.CurrentCamera
+	local viewport = source(camera.ViewportSize)
+	camera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
+		viewport(camera.ViewportSize)
+	end)
+	local function fit()
+		local size = viewport()
+		return math.min(size.X * MAX_SCREEN_W / CANVAS_W, size.Y * MAX_SCREEN_H / CANVAS_H)
+	end
 
 	local cards = {}
 	for index, upgradeId in ipairs(UpgradesConfig.Order) do
 		cards[index] = UpgradeCard(upgradeId, index, levels[upgradeId], coins, onBuy)
+	end
+
+	local function anyAffordable()
+		for _, upgradeId in ipairs(UpgradesConfig.Order) do
+			if coins() >= UpgradesConfig.GetPrice(upgradeId, levels[upgradeId]()) then
+				return true
+			end
+		end
+		return false
 	end
 
 	return create("ScreenGui")({
@@ -253,102 +688,84 @@ local function ShopUI(levels, coins, onBuy, onClose)
 			Name = "Root",
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			Position = UDim2.fromScale(0.5, 0.5),
-			Size = UDim2.fromScale(0.56, 0.78),
+			Size = UDim2.fromOffset(CANVAS_W, CANVAS_H),
 			BackgroundTransparency = 1,
 
-			create("UIAspectRatioConstraint")({
-				AspectRatio = 1.12,
-				AspectType = Enum.AspectType.FitWithinMaxSize,
-			}),
 			create("UIScale")({
 				Scale = function()
-					return math.max(scale(), 0.001)
+					return fit() * math.max(scale(), 0.001)
 				end,
 			}),
 
-			Plastic.Panel({
+			-- soft drop shadow under the whole panel
+			create("Frame")({
+				Name = "DropShadow",
+				Position = UDim2.fromOffset(0, 8),
+				Size = UDim2.fromScale(1, 1),
+				BackgroundColor3 = Color3.new(0, 0, 0),
+				BackgroundTransparency = 0.6,
+				BorderSizePixel = 0,
+				ZIndex = 0,
+
+				Corner(8),
+			}),
+
+			Box({
 				Name = "Panel",
 				Size = UDim2.fromScale(1, 1),
-				Corner = 0.1,
-				BodyColor = Color3.fromRGB(104, 204, 86),
-				BorderColor = Color3.fromRGB(38, 94, 52),
+				Colors = Colors.Panel,
+				Stroke = 4,
+				Corner = 6,
 				Children = {
-					Plastic.Label({
-						Name = "Title",
-						AnchorPoint = Vector2.new(0, 0),
-						Position = UDim2.fromScale(0.04, 0.03),
-						Size = UDim2.fromScale(0.45, 0.1),
-						XAlignment = Enum.TextXAlignment.Left,
-						Text = "Upgrade Shop",
+					Header(coins, onClose),
+					-- thick black edge under the header + a short shadow on the body
+					create("Frame")({
+						Name = "Divider",
+						Position = UDim2.fromOffset(0, HEADER_H),
+						Size = UDim2.new(1, 0, 0, DIVIDER_H),
+						BackgroundColor3 = BLACK,
+						BorderSizePixel = 0,
 					}),
+					create("Frame")({
+						Name = "HeaderShadow",
+						Position = UDim2.fromOffset(0, HEADER_H + DIVIDER_H),
+						Size = UDim2.new(1, 0, 0, 8),
+						BackgroundColor3 = Color3.new(0, 0, 0),
+						BorderSizePixel = 0,
 
-					-- coin balance
-					Plastic.Panel({
-						Name = "Coins",
-						AnchorPoint = Vector2.new(1, 0),
-						Position = UDim2.fromScale(0.86, 0.035),
-						Size = UDim2.fromScale(0.3, 0.085),
-						BodyColor = Color3.fromRGB(240, 196, 94),
-						BorderColor = Color3.fromRGB(170, 100, 20),
-						Corner = 0.5,
-						Children = {
-							Plastic.Label({
-								Name = "Amount",
-								AnchorPoint = Vector2.new(0.5, 0.5),
-								Position = UDim2.fromScale(0.5, 0.5),
-								Size = UDim2.fromScale(0.86, 0.7),
-								Text = function()
-									return formatNumber(shownCoins())
-								end,
-							}),
-						},
-					}),
-
-					-- close button
-					Plastic.Panel({
-						Name = "Close",
-						Style = "Accent",
-						AnchorPoint = Vector2.new(1, 0),
-						Position = UDim2.fromScale(0.97, 0.025),
-						Size = UDim2.fromScale(0.09, 0.1),
-						BodyColor = Color3.fromRGB(226, 112, 108),
-						BorderColor = Color3.fromRGB(150, 36, 52),
-						Corner = 0.35,
-						Children = {
-							create("UIAspectRatioConstraint")({ AspectRatio = 1 }),
-							Plastic.Label({
-								Name = "X",
-								AnchorPoint = Vector2.new(0.5, 0.5),
-								Position = UDim2.fromScale(0.5, 0.5),
-								Size = UDim2.fromScale(0.7, 0.7),
-								Text = "X",
-							}),
-							create("TextButton")({
-								Name = "Hit",
-								Size = UDim2.fromScale(1, 1),
-								BackgroundTransparency = 1,
-								Text = "",
-								ZIndex = 10,
-								Activated = onClose,
-							}),
-						},
+						create("UIGradient")({
+							Rotation = 90,
+							Transparency = NumberSequence.new(0.7, 1),
+						}),
 					}),
 
 					-- the upgrade cards, stacked from top to bottom
 					create("Frame")({
 						Name = "Cards",
-						AnchorPoint = Vector2.new(0.5, 1),
-						Position = UDim2.fromScale(0.5, 0.97),
-						Size = UDim2.fromScale(0.92, 0.77),
+						Position = UDim2.fromOffset(PAD_X, CARDS_Y),
+						Size = UDim2.fromOffset(CANVAS_W - PAD_X * 2, CARDS_H),
 						BackgroundTransparency = 1,
 
 						create("UIListLayout")({
 							FillDirection = Enum.FillDirection.Vertical,
 							SortOrder = Enum.SortOrder.LayoutOrder,
 							VerticalAlignment = Enum.VerticalAlignment.Top,
-							Padding = UDim.new(0.04, 0),
+							Padding = UDim.new(0, CARD_GAP),
 						}),
 						cards,
+					}),
+
+					Text({
+						Name = "Hint",
+						Position = UDim2.fromOffset(0, CARDS_Y + CARDS_H + HINT_GAP),
+						Size = UDim2.new(1, 0, 0, HINT_H),
+						XAlignment = Enum.TextXAlignment.Center,
+						Text = function()
+							return anyAffordable() and "Tap UPGRADE to level up" or "Earn coins to unlock your next upgrade"
+						end,
+						TextSize = 12,
+						Font = FONT_BOLD,
+						Transparency = 0.25,
 					}),
 				},
 			}),
