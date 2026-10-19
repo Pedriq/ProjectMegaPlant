@@ -22,6 +22,7 @@ local currentPlantId
 local growthPoints = 0
 local stepConnection -- Heartbeat connection of the running size animation (nil when idle)
 local bottomOffset -- bottom center of the current model, in its pivot space at scale 1
+local plantHeight -- height of the current model at scale 1 (the sink depth is a fraction of it)
 
 ---- Plant bed
 
@@ -132,7 +133,7 @@ end
 --- sank into the bed by up to 80% of its height.
 local function measureBottom(model)
 	local minX, minY, minZ = math.huge, math.huge, math.huge
-	local maxX, maxZ = -math.huge, -math.huge
+	local maxX, maxY, maxZ = -math.huge, -math.huge, -math.huge
 	for _, part in ipairs(model:GetDescendants()) do
 		if part:IsA("BasePart") then
 			local cframe, half = part.CFrame, part.Size / 2
@@ -141,14 +142,14 @@ local function measureBottom(model)
 					for sz = -1, 1, 2 do
 						local corner = cframe:PointToWorldSpace(Vector3.new(half.X * sx, half.Y * sy, half.Z * sz))
 						minX, maxX = math.min(minX, corner.X), math.max(maxX, corner.X)
-						minY = math.min(minY, corner.Y)
+						minY, maxY = math.min(minY, corner.Y), math.max(maxY, corner.Y)
 						minZ, maxZ = math.min(minZ, corner.Z), math.max(maxZ, corner.Z)
 					end
 				end
 			end
 		end
 	end
-	return Vector3.new((minX + maxX) / 2, minY, (minZ + maxZ) / 2)
+	return Vector3.new((minX + maxX) / 2, minY, (minZ + maxZ) / 2), maxY - minY
 end
 
 --- Scales the model and keeps its bottom centered on the bed's top surface.
@@ -158,13 +159,17 @@ local function applyScale(model, bedTop, scale)
 	if not bottomOffset then
 		-- measured at the model's untouched size (before the first ScaleTo): at tiny scales Roblox clamps small
 		-- parts to a minimum size, the box stops being proportional and the base would drift as the plant grows
-		bottomOffset = model:GetPivot():PointToObjectSpace(measureBottom(model)) / model:GetScale() -- bottom center, scale 1
+		local bottom, height = measureBottom(model)
+		bottomOffset = model:GetPivot():PointToObjectSpace(bottom) / model:GetScale() -- bottom center, scale 1
+		plantHeight = height / model:GetScale()
 	end
 	model:ScaleTo(math.max(scale, 0.001))
 	local pivot = model:GetPivot()
 	local actualScale = model:GetScale()
 	local bottomNow = pivot:PointToWorldSpace(bottomOffset * actualScale)
-	model:PivotTo(pivot + (bedTop - bottomNow))
+	-- the plant is planted a little: sunk by a fraction of its (current) height
+	local sink = PlantsConfig.Placement.SinkFraction * plantHeight * actualScale
+	model:PivotTo(pivot + (bedTop - Vector3.new(0, sink, 0) - bottomNow))
 end
 
 local function stopScaleTween()
@@ -243,7 +248,7 @@ function Plant_Service:Clear()
 		currentModel:Destroy()
 	end
 	currentModel, currentPlantId = nil, nil
-	bottomOffset = nil
+	bottomOffset, plantHeight = nil, nil
 	growthPoints = 0
 	publishWeight()
 end
