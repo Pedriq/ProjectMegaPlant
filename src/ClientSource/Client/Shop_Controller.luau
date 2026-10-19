@@ -163,7 +163,7 @@ local function Sheen(alpha, inset, height, corner)
 end
 
 --- Tiled stud texture inside a surface, under all of its content (and inside its outline).
-local function Pattern(inset, corner)
+local function Pattern(inset, corner, zIndex)
 	return create("ImageLabel")({
 		Name = "Pattern",
 		Position = UDim2.fromOffset(inset, inset),
@@ -173,7 +173,7 @@ local function Pattern(inset, corner)
 		ImageTransparency = CARD_PATTERN_TRANSPARENCY,
 		ScaleType = Enum.ScaleType.Tile,
 		TileSize = UDim2.fromOffset(CARD_PATTERN_TILE, CARD_PATTERN_TILE),
-		ZIndex = 0,
+		ZIndex = zIndex or 0,
 
 		Corner(corner),
 	})
@@ -192,6 +192,7 @@ local function Box(props)
 		Size = props.Size,
 		LayoutOrder = props.LayoutOrder,
 		BackgroundColor3 = WHITE,
+		BackgroundTransparency = props.BackgroundTransparency or 0,
 		BorderSizePixel = 0,
 
 		Corner(corner),
@@ -634,6 +635,9 @@ local function Header(coins, onClose)
 			}),
 		}),
 
+		-- stud texture, like on the cards
+		Pattern(0, innerCorner, 1),
+
 		Text({
 			Name = "Title",
 			AnchorPoint = Vector2.new(0, 0.5),
@@ -762,7 +766,7 @@ local function ShopUI(levels, coins, onBuy, onClose)
 				Size = UDim2.fromScale(1, 1),
 				Colors = Colors.Panel,
 				Stroke = PANEL_STROKE,
-				BackgroundTransparency = 0.25,
+				BackgroundTransparency = 0.15,
 				Corner = PANEL_CORNER,
 				Children = {
 					Header(coins, onClose),
