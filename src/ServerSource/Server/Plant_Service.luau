@@ -6,6 +6,7 @@ local TweenService = game:GetService("TweenService")
 local Knit = require(ReplicatedStorage.Packages.Knit)
 local PlantsConfig = require(ReplicatedStorage.SharedSource.Datas.PlantsConfig)
 local PlantGrowth = require(ReplicatedStorage.SharedSource.Utilities.PlantGrowth)
+local JuiceConfig = require(ReplicatedStorage.SharedSource.Datas.JuiceConfig)
 
 --[[
 	Owns the physical plant in the world: spawning it on Workspace/Garden/PlantBed,
@@ -36,19 +37,42 @@ local function findPlantBed()
 	return bed
 end
 
---- World position of the middle of the bed's top surface.
+--- Y of the lawn surface right under `position`, or nil. The PlantBed part is an invisible block that sticks up
+--- above the lawn (its top is ~1 stud higher), so planting on its top made small plants hover.
+local function findLawnTop(position)
+	local garden = workspace:FindFirstChild(PlantsConfig.GardenName)
+	local lawn = garden and garden:FindFirstChild(JuiceConfig.Pool.LawnName)
+	if not lawn then
+		return nil
+	end
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Include
+	params.FilterDescendantsInstances = { lawn }
+	local hit = workspace:Raycast(position + Vector3.new(0, 5, 0), Vector3.new(0, -20, 0), params)
+	return hit and hit.Position.Y or nil
+end
+
+--- World position of the middle of the bed's top surface, lowered to the lawn surface when the lawn is just
+--- below it (at most MAX_BED_LIFT studs), so the plant stands on the ground.
+local MAX_BED_LIFT = 3
 local function getBedTop(bed)
 	if not bed then
 		return Vector3.zero
 	end
+	local top
 	if bed:IsA("BasePart") then
-		return bed.Position + Vector3.new(0, bed.Size.Y / 2, 0)
-	end
-	if bed:IsA("Model") then
+		top = bed.Position + Vector3.new(0, bed.Size.Y / 2, 0)
+	elseif bed:IsA("Model") then
 		local cframe, size = bed:GetBoundingBox()
-		return cframe.Position + Vector3.new(0, size.Y / 2, 0)
+		top = cframe.Position + Vector3.new(0, size.Y / 2, 0)
+	else
+		return Vector3.zero
 	end
-	return Vector3.zero
+	local lawnY = findLawnTop(top)
+	if lawnY and lawnY <= top.Y and top.Y - lawnY <= MAX_BED_LIFT then
+		return Vector3.new(top.X, lawnY, top.Z)
+	end
+	return top
 end
 
 ---- Model helpers
@@ -102,16 +126,39 @@ local function prepareModel(model)
 	end
 end
 
+--- Bottom center of the model in WORLD space: the lowest point of any part (world Y) under the middle of the
+--- world-axis box. Model:GetBoundingBox is NOT used on purpose: its box follows the model's pivot / PrimaryPart
+--- rotation, so for fruit meshes whose pivot is turned the "bottom" it reports is a side face and the plant
+--- sank into the bed by up to 80% of its height.
+local function measureBottom(model)
+	local minX, minY, minZ = math.huge, math.huge, math.huge
+	local maxX, maxZ = -math.huge, -math.huge
+	for _, part in ipairs(model:GetDescendants()) do
+		if part:IsA("BasePart") then
+			local cframe, half = part.CFrame, part.Size / 2
+			for sx = -1, 1, 2 do
+				for sy = -1, 1, 2 do
+					for sz = -1, 1, 2 do
+						local corner = cframe:PointToWorldSpace(Vector3.new(half.X * sx, half.Y * sy, half.Z * sz))
+						minX, maxX = math.min(minX, corner.X), math.max(maxX, corner.X)
+						minY = math.min(minY, corner.Y)
+						minZ, maxZ = math.min(minZ, corner.Z), math.max(maxZ, corner.Z)
+					end
+				end
+			end
+		end
+	end
+	return Vector3.new((minX + maxX) / 2, minY, (minZ + maxZ) / 2)
+end
+
 --- Scales the model and keeps its bottom centered on the bed's top surface.
--- The bounding box is measured ONCE per plant (the model scales linearly around its pivot), after that the
--- placement is plain arithmetic: no GetBoundingBox / extra property writes on every size step.
+-- The bottom is measured ONCE per plant (the model scales linearly around its pivot), after that the
+-- placement is plain arithmetic: no extra measuring / property writes on every size step.
 local function applyScale(model, bedTop, scale)
 	if not bottomOffset then
 		-- measured at the model's untouched size (before the first ScaleTo): at tiny scales Roblox clamps small
 		-- parts to a minimum size, the box stops being proportional and the base would drift as the plant grows
-		local cframe, size = model:GetBoundingBox()
-		local bottom = Vector3.new(cframe.Position.X, cframe.Position.Y - size.Y / 2, cframe.Position.Z)
-		bottomOffset = model:GetPivot():PointToObjectSpace(bottom) / model:GetScale() -- bottom center, scale 1
+		bottomOffset = model:GetPivot():PointToObjectSpace(measureBottom(model)) / model:GetScale() -- bottom center, scale 1
 	end
 	model:ScaleTo(math.max(scale, 0.001))
 	local pivot = model:GetPivot()
