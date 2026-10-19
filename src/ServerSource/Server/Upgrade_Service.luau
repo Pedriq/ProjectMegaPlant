@@ -23,7 +23,7 @@ local Upgrade_Service = Knit.CreateService({
 
 local PURCHASE_COOLDOWN = 0.15
 
-local ProfileService, Stats_Service
+local ProfileService, Stats_Service, Notification_Service
 local shopPart
 local lastPurchase = {} -- [player] = os.clock() of the last purchase request
 
@@ -104,10 +104,8 @@ function Upgrade_Service:Purchase(player, upgradeId)
 	local level = data[upgradeId] or 0
 
 	local price = UpgradesConfig.GetPrice(upgradeId, level)
-	if not Stats_Service:CanAfford(player, price) then
-		return { Success = false, Reason = "Not enough coins", Level = level }
-	end
-	if not Stats_Service:SpendCoins(player, price) then
+	if not Stats_Service:CanAfford(player, price) or not Stats_Service:SpendCoins(player, price) then
+		Notification_Service:Notify(player, "NotEnoughCoins")
 		return { Success = false, Reason = "Not enough coins", Level = level }
 	end
 
@@ -177,6 +175,7 @@ end
 function Upgrade_Service:KnitStart()
 	ProfileService = Knit.GetService("ProfileService")
 	Stats_Service = Knit.GetService("Stats_Service")
+	Notification_Service = Knit.GetService("Notification_Service")
 
 	ProfileService.ProfileLoaded:Connect(setupPlayer)
 	for player in pairs(ProfileService.Profiles) do

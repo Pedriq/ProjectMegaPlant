@@ -163,11 +163,11 @@ local function update(player, dt, plantTarget)
 	local desiredTilt = pouring and math.rad(config.PourTilt) or 0
 	entry.Tilt += (desiredTilt - entry.Tilt) * (1 - math.exp(-TILT_SMOOTHING * dt))
 
+	-- "aligned" frame: where the can would be if its spout already pointed at -Z (turns with the player / toward the
+	-- plant and tilts while pouring). RotationOffset only fixes the MODEL, so the spout is measured in this frame.
 	local offset = config.RotationOffset
-	local cframe = CFrame.new(position)
-		* entry.Rotation
-		* CFrame.Angles(-entry.Tilt, 0, 0)
-		* CFrame.Angles(math.rad(offset.X), math.rad(offset.Y), math.rad(offset.Z))
+	local aligned = CFrame.new(position) * entry.Rotation * CFrame.Angles(-entry.Tilt, 0, 0)
+	local cframe = aligned * CFrame.Angles(math.rad(offset.X), math.rad(offset.Y), math.rad(offset.Z))
 	entry.Model:PivotTo(cframe)
 	entry.TopPosition = position + Vector3.new(0, height * 0.4, 0)
 
@@ -178,7 +178,7 @@ local function update(player, dt, plantTarget)
 	elseif spout and spout:IsA("BasePart") then
 		entry.SpoutPosition = spout.Position
 	else
-		entry.SpoutPosition = (cframe * CFrame.new(config.SpoutOffset * scale)).Position
+		entry.SpoutPosition = (aligned * CFrame.new(config.SpoutOffset * scale)).Position
 	end
 end
 
