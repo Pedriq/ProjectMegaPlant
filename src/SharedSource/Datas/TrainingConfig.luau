@@ -136,8 +136,9 @@ TrainingConfig.DistanceTolerance = 6
 -- how far above the Main surface the body is placed
 TrainingConfig.LyingHeight = 0.9
 
--- how transparent other trainees at the same station look to the local player (0-1)
-TrainingConfig.OtherTraineeTransparency = 0.75
+-- how transparent other trainees at the same station look to the local player (0-1). 1 = not drawn at all: only
+-- the local player's own character (and barbell) is visible at the station they are training at.
+TrainingConfig.OtherTraineeTransparency = 1
 
 ---- Accessors (use these instead of reading the tables directly)
 

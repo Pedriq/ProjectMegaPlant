@@ -1,3 +1,4 @@
+local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
@@ -101,6 +102,9 @@ function BarbellRig.Start(character, main, trainingRoot, options)
 
 	local bar = rack:Clone()
 	bar.Name = "TrainingBarbell"
+	-- whose bar it is: clients hide the bars of the other trainees at their own station (TrainingTransparency_Controller)
+	local owner = Players:GetPlayerFromCharacter(character)
+	bar:SetAttribute("OwnerUserId", owner and owner.UserId or nil)
 	for _, descendant in ipairs(bar:GetDescendants()) do
 		if descendant:IsA("BaseScript") then
 			descendant:Destroy()

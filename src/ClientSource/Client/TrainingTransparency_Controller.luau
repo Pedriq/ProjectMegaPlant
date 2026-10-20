@@ -5,12 +5,14 @@ local Knit = require(ReplicatedStorage.Packages.Knit)
 local TrainingConfig = require(ReplicatedStorage.SharedSource.Datas.TrainingConfig)
 
 --[[
-	When the local player trains at a station, the other players training at the SAME station are
-	drawn more transparent so the local character stays prominent. Purely local: nothing is
-	replicated and no one else's view changes.
+	When the local player trains at a station, the other players training at the SAME station are hidden, so only
+	the local character is seen there (TrainingConfig.OtherTraineeTransparency, 1 = invisible). Hidden with them:
+	  - their particle effects, trails and beams, and their overhead name tag
+	  - the barbell they hold (TrainingBarbells/TrainingBarbell, tagged with OwnerUserId by BarbellRig)
+	Purely local: nothing is replicated and no one else's view changes.
 
-	Original transparencies are remembered per instance and restored as soon as the other player
-	stops training, leaves, respawns, or the local player stops training.
+	Original values are remembered per instance and restored as soon as the other player stops training, leaves,
+	respawns, or the local player stops training.
 ]]
 local TrainingTransparency_Controller = Knit.CreateController({
 	Name = "TrainingTransparency_Controller",
@@ -18,22 +20,37 @@ local TrainingTransparency_Controller = Knit.CreateController({
 
 local localPlayer = Players.LocalPlayer
 local ATTRIBUTE = TrainingConfig.Attribute
+local BARBELLS_FOLDER = "TrainingBarbells"
 
--- [player] = { Character, Originals = { [instance] = original transparency }, Connection }
+-- [player] = { Character, Originals = { [instance] = { Property, Value } }, Connections = {} }
 local faded = {}
 
-local function isFadeable(instance)
-	return instance:IsA("BasePart") or instance:IsA("Decal")
+-- the property that hides each kind of instance
+local function hiddenProperty(instance)
+	if instance:IsA("BasePart") or instance:IsA("Decal") then
+		return "Transparency", math.max(instance.Transparency, TrainingConfig.OtherTraineeTransparency)
+	elseif instance:IsA("ParticleEmitter") or instance:IsA("Trail") or instance:IsA("Beam") then
+		return "Enabled", false
+	elseif instance:IsA("BillboardGui") or instance:IsA("SurfaceGui") then
+		return "Enabled", false
+	elseif instance:IsA("Humanoid") then
+		return "DisplayDistanceType", Enum.HumanoidDisplayDistanceType.None
+	end
+	return nil
 end
 
 local function fadeInstance(record, instance)
-	if not isFadeable(instance) or record.Originals[instance] ~= nil then
+	if record.Originals[instance] ~= nil then
 		return
 	end
-	local original = instance.Transparency
-	record.Originals[instance] = original
-	-- never make something *less* transparent (e.g. the invisible HumanoidRootPart stays invisible)
-	instance.Transparency = math.max(original, TrainingConfig.OtherTraineeTransparency)
+	local property, hidden = hiddenProperty(instance)
+	if not property then
+		return
+	end
+	-- never make something *less* hidden (e.g. the invisible HumanoidRootPart stays invisible): Transparency uses
+	-- math.max above, the other properties only ever turn things off
+	record.Originals[instance] = { Property = property, Value = instance[property] }
+	instance[property] = hidden
 end
 
 local function restore(player)
@@ -42,12 +59,12 @@ local function restore(player)
 		return
 	end
 	faded[player] = nil
-	if record.Connection then
-		record.Connection:Disconnect()
+	for _, connection in ipairs(record.Connections) do
+		connection:Disconnect()
 	end
 	for instance, original in pairs(record.Originals) do
 		if instance.Parent then
-			instance.Transparency = original
+			instance[original.Property] = original.Value
 		end
 	end
 end
@@ -67,15 +84,35 @@ local function fade(player)
 		return
 	end
 
-	record = { Character = character, Originals = {}, Connection = nil }
+	record = { Character = character, Originals = {}, Connections = {} }
 	faded[player] = record
 	for _, descendant in ipairs(character:GetDescendants()) do
 		fadeInstance(record, descendant)
 	end
-	-- accessories / tools that appear later
-	record.Connection = character.DescendantAdded:Connect(function(descendant)
+	-- accessories / tools / effects that appear later
+	table.insert(record.Connections, character.DescendantAdded:Connect(function(descendant)
 		fadeInstance(record, descendant)
-	end)
+	end))
+
+	-- the barbell(s) this player holds: the existing ones, and the ones that are created while they train
+	local function hideBar(bar)
+		if bar:GetAttribute("OwnerUserId") == player.UserId then
+			for _, descendant in ipairs(bar:GetDescendants()) do
+				fadeInstance(record, descendant)
+			end
+			fadeInstance(record, bar)
+		end
+	end
+	local folder = workspace:FindFirstChild(BARBELLS_FOLDER)
+	if folder then
+		for _, bar in ipairs(folder:GetChildren()) do
+			hideBar(bar)
+		end
+		table.insert(record.Connections, folder.ChildAdded:Connect(function(bar)
+			-- the owner attribute is set right after the clone is created, so give it a frame
+			task.defer(hideBar, bar)
+		end))
+	end
 end
 
 --- Decides for one other player whether they should currently be faded.
@@ -120,6 +157,15 @@ function TrainingTransparency_Controller:KnitStart()
 	end
 
 	Players.PlayerRemoving:Connect(restore)
+end
+
+--- Hides / shows a player's character and barbell by hand, whatever station they are at (debug / tests).
+function TrainingTransparency_Controller:SetHidden(player, hidden)
+	if hidden then
+		fade(player)
+	else
+		restore(player)
+	end
 end
 
 function TrainingTransparency_Controller:KnitInit() end
