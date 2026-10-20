@@ -50,6 +50,17 @@ NotificationConfig.Messages = {
 		Title = "{Zone} is locked",
 		Hint = "{Requirement}",
 	},
+	TutorialStep = {
+		Type = "Success",
+		Title = "Step complete!",
+		Hint = "Next: {Next}",
+	},
+	TutorialDone = {
+		Type = "Success",
+		Title = "Tutorial complete!",
+		Hint = "Grow plants to unlock higher training zones",
+		Duration = 4,
+	},
 	NotEnoughCoins = {
 		Type = "Error",
 		Title = "Not enough coins!",
