@@ -8,9 +8,8 @@
 		Effect         what it improves: "FillSpeed" (water collection), "PourSpeed" (watering) or "CritChance" (Luck)
 		EffectName     short label used in the shop
 		(no max level: upgrades can be bought forever)
-		Curve numbers (BasePrice, Bonus, Scale, Tail) come from BalanceConfig.Upgrades, where the three
-		phases (hook / plateau / mastery) are explained:
-		  price(level)      = BasePrice * GrowthEarly^min(level, SoftLevel) * GrowthLate^max(level - SoftLevel, 0)
+		Curve numbers (Bonus, Scale, Tail) and the shared price numbers come from BalanceConfig.Upgrades:
+		  price(n)          = FirstPrice for n = 1, else floor(SecondPrice * Growth^(n - 2))   (n = level being bought)
 		  multiplier(level) = 1 + Bonus * (1 - e^(-level / Scale)) + Tail * level
 ]]
 
@@ -95,16 +94,16 @@ function UpgradesConfig.GetAttributeName(upgradeId)
 	return UpgradesConfig.AttributePrefix .. upgradeId
 end
 
---- Price of the NEXT level for a player currently at `level`. Cheap and steady for the first levels, then
---- steeper; clamped to MaxPrice so it stays a sane integer at any level.
-function UpgradesConfig.GetPrice(upgradeId, level)
-	local config = UpgradesConfig.Upgrades[upgradeId]
+--- Price of the NEXT level for a player currently at `level` (same for every upgrade): 50, 300, 840, 2352...
+--- Clamped to MaxPrice so it stays a sane integer at any level.
+function UpgradesConfig.GetPrice(_upgradeId, level)
 	local economy = BalanceConfig.Upgrades
-	level = math.max(level, 0)
-	local early = math.min(level, economy.SoftLevel)
-	local late = math.max(level - economy.SoftLevel, 0)
-	local price = config.Curve.BasePrice * economy.GrowthEarly ^ early * economy.GrowthLate ^ late
-	return math.floor(math.min(price, economy.MaxPrice) + 0.5)
+	local nextLevel = math.max(level, 0) + 1
+	if nextLevel == 1 then
+		return economy.FirstPrice
+	end
+	local price = economy.SecondPrice * economy.Growth ^ (nextLevel - 2)
+	return math.floor(math.min(price, economy.MaxPrice))
 end
 
 --- Speed multiplier granted by an upgrade at `level` (1 = no bonus): big early gains that flatten out,

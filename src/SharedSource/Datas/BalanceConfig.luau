@@ -95,16 +95,16 @@ BalanceConfig.PointsAtGoal = 1200
 -- speed multiplier(level) = 1 + Bonus * (1 - e^(-level / Scale)) + Tail * level
 --   Bonus/Scale: the fast, satisfying early gains that flatten out (diminishing returns)
 --   Tail:        a thin linear gain that never stops, so every level keeps mattering a little
--- price(level)  = BasePrice * GrowthEarly^min(level, SoftLevel) * GrowthLate^max(level - SoftLevel, 0)
+-- price of buying level n (same for every upgrade):
+--   n = 1:  FirstPrice
+--   n >= 2: floor(SecondPrice * Growth^(n - 2))
 BalanceConfig.Upgrades = {
 	WateringSpeed = {
-		BasePrice = 30,
 		Bonus = 2.4,
 		Scale = 10,
 		Tail = 0.01,
 	},
 	WaterCollectionSpeed = {
-		BasePrice = 45,
 		Bonus = 1.6,
 		Scale = 10,
 		Tail = 0.008,
@@ -112,14 +112,13 @@ BalanceConfig.Upgrades = {
 	-- Luck: raises the chance of a LUCKY pour (critical hit while watering). The multiplier curve is the same
 	-- shape as the speed upgrades; chance = min(BaseCritChance * multiplier, MaxCritChance).
 	Luck = {
-		BasePrice = 60,
 		Bonus = 2,
 		Scale = 12,
 		Tail = 0.01,
 	},
-	GrowthEarly = 1.15,
-	GrowthLate = 1.26,
-	SoftLevel = 12, -- the HOOK phase ends here
+	FirstPrice = 50,
+	SecondPrice = 300,
+	Growth = 2.8,
 	MaxPrice = 1e9, -- prices are clamped (coins are capped at 2^31-1 anyway), so absurd levels can never overflow
 }
 
