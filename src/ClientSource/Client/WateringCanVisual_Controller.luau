@@ -165,7 +165,11 @@ local function update(player, dt, plantTarget)
 		target = aboveHead + Vector3.new(0, math.sin(t * 3) * 0.12, 0)
 	else
 		local reach = 3 + height * 0.5
-		local orbit = Vector3.new(math.sin(t * 1.7) * 0.6, math.sin(t * 2.3) * 0.7 + math.sin(t * 5) * 0.15, math.cos(t * 1.7) * 0.5)
+		local orbit = Vector3.new(
+			math.sin(t * 1.7) * 0.6,
+			math.sin(t * 2.3) * 0.7 + math.sin(t * 5) * 0.15,
+			math.cos(t * 1.7) * 0.5
+		)
 		local local_ = Vector3.new(0, 0.8, reach) + orbit -- +Z is directly behind the character
 		target = aboveHead + root.CFrame:VectorToWorldSpace(local_)
 	end
@@ -197,20 +201,17 @@ local function update(player, dt, plantTarget)
 
 	-- lean into the direction of travel, wobble a bit
 	local localVel = entry.Rotation:VectorToObjectSpace(entry.Velocity)
-	local desiredLean = Vector2.new(
-		math.clamp(localVel.Z * 0.04, -0.5, 0.5),
-		math.clamp(-localVel.X * 0.04, -0.5, 0.5)
-	)
+	local desiredLean = Vector2.new(math.clamp(localVel.Z * 0.04, -0.5, 0.5), math.clamp(-localVel.X * 0.04, -0.5, 0.5))
 	entry.Lean = entry.Lean and entry.Lean:Lerp(desiredLean, 1 - math.exp(-LEAN_SMOOTHING * dt)) or desiredLean
 
+	-- "aligned" frame: where the can would be if its spout already pointed at -Z (turns with the player / toward the
+	-- plant and tilts while pouring). RotationOffset only fixes the MODEL, so the spout is measured in this frame.
 	local offset = config.RotationOffset
 	local cframe = CFrame.new(position)
 		* entry.Rotation
-		* CFrame.Angles(entry.Lean.X, 0, entry.Lean.Y + (pouring and 0 or math.sin(t * 4) * 0.08))
 		* CFrame.Angles(-entry.Tilt, 0, 0)
 		* CFrame.Angles(math.rad(offset.X), math.rad(offset.Y), math.rad(offset.Z))
-	local pivot = cframe * CFrame.new(-entry.CenterOffset * scale)
-	entry.Model:PivotTo(pivot)
+	entry.Model:PivotTo(cframe)
 	entry.TopPosition = position + Vector3.new(0, height * 0.4, 0)
 
 	-- spout position (used by the water stream)
@@ -220,7 +221,7 @@ local function update(player, dt, plantTarget)
 	elseif spout and spout:IsA("BasePart") then
 		entry.SpoutPosition = spout.Position
 	else
-		entry.SpoutPosition = (pivot * CFrame.new(config.SpoutOffset * scale)).Position
+		entry.SpoutPosition = (cframe * CFrame.new(config.SpoutOffset * scale)).Position
 	end
 end
 

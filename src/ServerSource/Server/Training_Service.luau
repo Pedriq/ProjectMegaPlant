@@ -23,7 +23,7 @@ local Training_Service = Knit.CreateService({
 	Client = {},
 })
 
-local Stats_Service
+local Stats_Service, Notification_Service
 
 local sessions = HoldSessions.new()
 local active = {} -- [player] = training state
@@ -151,6 +151,10 @@ local function startTraining(player, station)
 		return Stats_Service:GetStat(player, statKey)
 	end)
 	if not unlocked then
+		Notification_Service:Notify(player, "ZoneLocked", {
+			Zone = TrainingConfig.Zones[station.ZoneId].DisplayName,
+			Requirement = TrainingConfig.GetUnlockText(station.ZoneId) or "",
+		})
 		return
 	end
 	local maxDistance = TrainingConfig.Prompt.MaxActivationDistance + TrainingConfig.DistanceTolerance
@@ -289,6 +293,7 @@ end
 
 function Training_Service:KnitStart()
 	Stats_Service = Knit.GetService("Stats_Service")
+	Notification_Service = Knit.GetService("Notification_Service")
 
 	local function watch(player)
 		-- a new character (respawn) always ends training and restores the player

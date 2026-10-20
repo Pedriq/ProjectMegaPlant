@@ -33,7 +33,7 @@ local Watering_Service = Knit.CreateService({
 	PourStopped = Signal.new(),
 })
 
-local Water_Service, Plant_Service, PlantCycle_Service, Upgrade_Service
+local Water_Service, Plant_Service, PlantCycle_Service, Upgrade_Service, Notification_Service
 
 local sessions = HoldSessions.new()
 local prompt, bedPart
@@ -89,7 +89,11 @@ local function flushGrowth()
 end
 
 local function startWatering(player)
-	if not canWater() or not isInRange(player) or Water_Service:GetWater(player) <= 0 then
+	if not canWater() or not isInRange(player) then
+		return
+	end
+	if Water_Service:GetWater(player) <= 0 then
+		Notification_Service:Notify(player, "NoWater")
 		return
 	end
 
@@ -124,7 +128,12 @@ local function startWatering(player)
 			Watering_Service.Poured:Fire(player, poured, dt, state)
 		end
 
-		return Water_Service:GetWater(player) > 0
+		if Water_Service:GetWater(player) <= 0 then
+			-- the can ran dry while pouring
+			Notification_Service:Notify(player, "OutOfWater")
+			return false
+		end
+		return true
 	end, function()
 		player:SetAttribute(ATTR.Watering, false)
 		Watering_Service.PourStopped:Fire(player)
@@ -232,6 +241,7 @@ function Watering_Service:KnitStart()
 	Plant_Service = Knit.GetService("Plant_Service")
 	PlantCycle_Service = Knit.GetService("PlantCycle_Service")
 	Upgrade_Service = Knit.GetService("Upgrade_Service")
+	Notification_Service = Knit.GetService("Notification_Service")
 
 
 	-- apply accumulated growth in batches instead of once per player per frame

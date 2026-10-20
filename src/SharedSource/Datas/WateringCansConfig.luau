@@ -12,8 +12,8 @@
 		MaxScale      model scale when the can is full
 		HoverGap      studs between the top of the head and the bottom of the can (a fixed distance, it doesn't grow with the can)
 		RotationOffset  degrees (X, Y, Z) to align the model: its front (spout side) must point at -Z
-		SpoutOffset   spout position relative to the model pivot at scale 1 (used when the model has
-		              no part/attachment named "Spout")
+		SpoutOffset   spout tip relative to the model pivot at scale 1, in the ALIGNED frame (after RotationOffset, so
+		              the spout is on -Z). Used when the model has no part/attachment named "Spout".
 		PourTilt      degrees the can tilts forward while pouring
 ]]
 
@@ -35,8 +35,11 @@ WateringCansConfig.Cans = {
 		MinScale = 0.6,
 		MaxScale = 1.6,
 		HoverGap = 0.6,
-		RotationOffset = Vector3.new(0, 0, 0),
-		SpoutOffset = Vector3.new(0, 0, -1.5),
+		-- the BasicWateringCan template has its pivot turned 45 degrees and its spout on a diagonal of the mesh: 270
+		-- degrees about Y puts the spout on -Z (handle at the back), the way WateringCanVisual_Controller expects
+		RotationOffset = Vector3.new(0, 270, 0),
+		-- spout tip (measured): about one stud out in front of the pivot, a bit above the middle
+		SpoutOffset = Vector3.new(0, 0.25, -1),
 		PourTilt = 35,
 	},
 }

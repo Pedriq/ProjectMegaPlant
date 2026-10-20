@@ -18,7 +18,7 @@ local WaterSource_Service = Knit.CreateService({
 	Client = {},
 })
 
-local Water_Service, Upgrade_Service
+local Water_Service, Upgrade_Service, Notification_Service
 local sessions = HoldSessions.new()
 
 local function resolvePath(path)
@@ -52,6 +52,7 @@ end
 
 local function startFilling(player, part, source)
 	if Water_Service:IsFull(player) then
+		Notification_Service:Notify(player, "CanFull")
 		return
 	end
 
@@ -103,6 +104,7 @@ end
 function WaterSource_Service:KnitStart()
 	Water_Service = Knit.GetService("Water_Service")
 	Upgrade_Service = Knit.GetService("Upgrade_Service")
+	Notification_Service = Knit.GetService("Notification_Service")
 
 	Players.PlayerRemoving:Connect(function(player)
 		sessions:Stop(player)

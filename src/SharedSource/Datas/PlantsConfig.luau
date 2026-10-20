@@ -37,6 +37,13 @@ PlantsConfig.GardenName = "Garden"
 PlantsConfig.PlantBedName = "PlantBed"
 PlantsConfig.PlantTag = "GardenPlant" -- CollectionService tag on the plant model currently in the world
 
+---- Placement
+-- How deep a plant is pushed into the ground, as a fraction of its own height (0 = bottom exactly on the ground,
+-- 0.06 = the lowest 6% is buried). A fraction, so the plant looks equally "planted" at every size.
+PlantsConfig.Placement = {
+	SinkFraction = 0.06,
+}
+
 ---- Cycle
 PlantsConfig.Cycle = {
 	FinishedDuration = BalanceConfig.Cycle.FinishedDuration, -- seconds between "fully grown" and the next plant being selected
