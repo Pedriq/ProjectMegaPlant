@@ -66,7 +66,8 @@ local function resetData(player)
 	for _, upgradeId in ipairs(UpgradesConfig.Order) do
 		player:SetAttribute(UpgradesConfig.GetAttributeName(upgradeId), 0)
 	end
-	player:SetAttribute(WaterConfig.Attributes.Water, 0)
+	-- the can's real water (not just the attribute), or the tutorial's first step would count an old full can
+	Water_Service:DebugSetWater(player, 0)
 	Tutorial_Service:Restart(player)
 end
 

@@ -4,6 +4,7 @@ local TweenService = game:GetService("TweenService")
 
 local Knit = require(ReplicatedStorage.Packages.Knit)
 local NotificationConfig = require(ReplicatedStorage.SharedSource.Datas.NotificationConfig)
+local TutorialConfig = require(ReplicatedStorage.SharedSource.Datas.TutorialConfig)
 local Plastic = require(ReplicatedStorage.ClientSource.UI.Plastic)
 
 --[[
@@ -210,6 +211,11 @@ end
 
 --- Shows a notification from NotificationConfig.Messages on this client.
 function Notification_Controller:Notify(id, params)
+	-- during the first-time tutorial only the tutorial's own messages are shown (ids "TutorialStep", "TutorialDone"):
+	-- anything else would bury the objective, and the tutorial already explains what the player has to do
+	if (player:GetAttribute(TutorialConfig.StepAttribute) or 0) > 0 and not id:find("^Tutorial") then
+		return
+	end
 	local info = NotificationConfig.Resolve(id, params)
 	if not info then
 		warn("Notification_Controller: unknown notification '" .. tostring(id) .. "'")

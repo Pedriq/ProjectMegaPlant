@@ -366,6 +366,34 @@ local function UpgradeCard(upgradeId, layoutOrder, level, coins, onBuy)
 		return parts().Next
 	end
 
+	-- the UPGRADE button itself reacts: it squashes when pressed and springs back with a little overshoot, and
+	-- pops bigger when the level really goes up (same spring "bump" the HUD rows use)
+	local buttonScale = source(1)
+	local buttonScaleSpring = Vide.spring(function()
+		return buttonScale()
+	end, 0.22, 0.45)
+	local function pressButton()
+		task.defer(function()
+			buttonScale(0.86)
+			task.delay(0.09, function()
+				buttonScale(1)
+			end)
+		end)
+	end
+	local lastLevel = level()
+	Vide.effect(function()
+		local current = level()
+		if current > lastLevel then
+			task.defer(function()
+				buttonScale(1.2)
+				task.delay(0.1, function()
+					buttonScale(1)
+				end)
+			end)
+		end
+		lastLevel = current
+	end)
+
 	local icon
 	if config.IconImage then
 		icon = create("ImageLabel")({
@@ -508,8 +536,9 @@ local function UpgradeCard(upgradeId, layoutOrder, level, coins, onBuy)
 			-- buy block: price on top, the action below; green when affordable, grey otherwise
 			Box({
 				Name = "BuyButton",
-				AnchorPoint = Vector2.new(1, 0.5),
-				Position = UDim2.new(1, -19, 0.5, 0),
+				-- anchored at its centre, so the press / pop scales it around the middle
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				Position = UDim2.new(1, -70, 0.5, 0),
 				Size = UDim2.fromOffset(102, 88),
 				Colors = function()
 					return affordable() and Colors.BuyReady or Colors.BuyDisabled
@@ -562,8 +591,14 @@ local function UpgradeCard(upgradeId, layoutOrder, level, coins, onBuy)
 					}),
 					-- hit area; the server decides if the purchase works
 					HitButton(function()
+						pressButton()
 						onBuy(upgradeId)
 					end),
+					create("UIScale")({
+						Scale = function()
+							return buttonScaleSpring()
+						end,
+					}),
 				},
 			}),
 		},

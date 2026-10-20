@@ -11,7 +11,8 @@ local Plastic = require(ReplicatedStorage.ClientSource.UI.Plastic)
 
 --[[
 	Draws the first-time tutorial (see TutorialConfig / Tutorial_Service):
-	  - an objective card in the top-left corner: step number, title, explanation and a progress bar
+	  - an objective card in the TOP-RIGHT corner: step number, title, explanation and a progress bar
+	    (top-left is the Roblox chat, bottom centre the Cancel button and banners, right middle the leaderboard)
 	  - a gold beam from the player to the target, and a bouncing arrow above it with its name and distance
 	  - when the target is off screen, a direction arrow on the edge of the screen pointing to it
 	The server decides everything; this controller only reads the player attributes it writes
@@ -30,7 +31,7 @@ local GOLD = Color3.fromRGB(255, 214, 72)
 local GOLD_DARK = Color3.fromRGB(110, 70, 10)
 local CARD_COLOR = Color3.fromRGB(46, 92, 64)
 -- the edge arrow stays inside this box (px from each screen side): clear of the stats column, the card and the plant HUD
-local EDGE_LEFT, EDGE_RIGHT, EDGE_TOP, EDGE_BOTTOM = 190, 110, 230, 120
+local EDGE_LEFT, EDGE_RIGHT, EDGE_TOP, EDGE_BOTTOM = 190, 110, 230, 190
 local STUDS_TO_METERS = 0.28
 local BEAM_HIDE_DISTANCE = 14 -- the beam is hidden when the player is this close to the target
 
@@ -246,12 +247,12 @@ local function buildGui()
 	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
 	local aspect = Instance.new("UIAspectRatioConstraint")
-	aspect.AspectRatio = 1.7
+	aspect.AspectRatio = 1.8
 	aspect.DominantAxis = Enum.DominantAxis.Width
 	aspect.AspectType = Enum.AspectType.ScaleWithParentSize
 	local limits = Instance.new("UISizeConstraint")
-	limits.MinSize = Vector2.new(240, 0)
-	limits.MaxSize = Vector2.new(400, math.huge)
+	limits.MinSize = Vector2.new(250, 0)
+	limits.MaxSize = Vector2.new(390, math.huge)
 	cardScale = Instance.new("UIScale")
 	cardScale.Scale = 0
 
@@ -283,8 +284,9 @@ local function buildGui()
 
 	card = Plastic.Panel({
 		Name = "Card",
-		Position = UDim2.fromScale(0.012, 0.03),
-		Size = UDim2.fromScale(0.25, 0),
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.fromScale(0.99, 0.03),
+		Size = UDim2.fromScale(0.232, 0), -- narrow enough to sit beside the 612 px shop window
 		BodyColor = CARD_COLOR,
 		Style = "Accent",
 		Corner = 0.22,
