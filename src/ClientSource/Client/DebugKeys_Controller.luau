@@ -8,6 +8,7 @@ local Knit = require(ReplicatedStorage.Packages.Knit)
 	Developer keyboard shortcuts. They only exist in Roblox Studio (RunService:IsStudio()), never in the live game,
 	and are the no-chat way to run DebugCommands_Service commands (chat is blocked in some regions).
 		F6          restart the tutorial
+		F8          add a pretend friend to test the Friend Boost (0 -> 5, then back to 0)
 		Shift+F7    reset ALL your saved data to a new player's (it is saved to the real DataStore!)
 	A toast confirms each one.
 ]]
@@ -42,6 +43,8 @@ function DebugKeys_Controller:KnitStart()
 		end
 		if input.KeyCode == Enum.KeyCode.F6 then
 			run("Tutorial", "Tutorial restarted")
+		elseif input.KeyCode == Enum.KeyCode.F8 then
+			run("FriendBoost", "Pretend friend added (cycles 0-5)")
 		elseif input.KeyCode == Enum.KeyCode.F7 and UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
 			run("ResetData", "Data reset - stop and press Play again")
 		end

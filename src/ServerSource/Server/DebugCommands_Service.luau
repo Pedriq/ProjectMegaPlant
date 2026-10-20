@@ -31,7 +31,9 @@ local DEFAULT_WATERING_LEVEL = 10000
 local DEFAULT_CAPACITY = 300
 local MAX_INT_VALUE = 2147483647 -- Strength is an IntValue
 
-local Water_Service, Upgrade_Service, Stats_Service, Tutorial_Service, ProfileService
+local Water_Service, Upgrade_Service, Stats_Service, Tutorial_Service, ProfileService, FriendBoost_Service
+local fakeFriendCount = {} -- [player] = 0..MAX_FAKE_FRIENDS, cycled by the F8 key
+local MAX_FAKE_FRIENDS = 5
 
 local function deepCopy(value)
 	if type(value) ~= "table" then
@@ -77,6 +79,12 @@ local handlers = {
 		Tutorial_Service:Restart(player)
 	end,
 	ResetData = resetData,
+	-- every call adds one pretend friend (wraps back to 0 after MAX_FAKE_FRIENDS): to test the Friend Boost alone
+	FriendBoost = function(player)
+		local count = ((fakeFriendCount[player] or 0) + 1) % (MAX_FAKE_FRIENDS + 1)
+		fakeFriendCount[player] = count
+		FriendBoost_Service:DebugSetFriends(player, count)
+	end,
 }
 
 --- Studio only: the client asks for one of `handlers`. Anything else (or any call outside Studio) is refused.
@@ -115,6 +123,7 @@ function DebugCommands_Service:KnitStart()
 	Stats_Service = Knit.GetService("Stats_Service")
 	Tutorial_Service = Knit.GetService("Tutorial_Service")
 	ProfileService = Knit.GetService("ProfileService")
+	FriendBoost_Service = Knit.GetService("FriendBoost_Service")
 
 	createCommand("DebugWaterCommand", "/water", function(player, text)
 		local amount = tonumber(text:match("%S+%s+(%S+)")) or DEFAULT_WATER

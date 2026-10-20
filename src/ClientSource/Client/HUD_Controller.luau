@@ -5,6 +5,7 @@ local Knit = require(ReplicatedStorage.Packages.Knit)
 local Vide = require(ReplicatedStorage.Packages.Vide)
 local StatsConfig = require(ReplicatedStorage.SharedSource.Datas.StatsConfig)
 local WaterConfig = require(ReplicatedStorage.SharedSource.Datas.WaterConfig)
+local FriendBoostConfig = require(ReplicatedStorage.SharedSource.Datas.FriendBoostConfig)
 local WaitFor = require(ReplicatedStorage.ClientSource.Utilities.WaitFor)
 
 local create = Vide.create
@@ -68,7 +69,7 @@ end
 
 --- One HUD row: icon + number. If `secondary` is given, a smaller second line is shown under the number.
 --- The number counts up smoothly when the stat changes.
-local function StatRow(definition, value, layoutOrder, secondary)
+local function StatRow(definition, value, layoutOrder, secondary, badge)
 	local displayed = Vide.spring(function()
 		return value()
 	end, 0.25, 1)
@@ -123,7 +124,28 @@ local function StatRow(definition, value, layoutOrder, secondary)
 				Image = definition.Icon,
 				ScaleType = Enum.ScaleType.Fit,
 
-				create("UIAspectRatioConstraint")({ AspectRatio = 1 }),
+					create("UIAspectRatioConstraint")({ AspectRatio = 1 }),
+
+				-- small pill on the corner of the icon (the Friend Boost multiplier on the money icon); hidden when empty
+				badge and create("TextLabel")({
+					Name = "Badge",
+					AnchorPoint = Vector2.new(1, 1),
+					Position = UDim2.fromScale(1.12, 1.08),
+					Size = UDim2.fromScale(0.78, 0.36),
+					BackgroundColor3 = Color3.fromRGB(255, 205, 64),
+					BorderSizePixel = 0,
+					ZIndex = 5,
+					Visible = function()
+						return badge() ~= ""
+					end,
+					Text = badge,
+					TextScaled = true,
+					Font = Enum.Font.GothamBold,
+					TextColor3 = Color3.fromRGB(74, 44, 8),
+
+					create("UICorner")({ CornerRadius = UDim.new(0.5, 0) }),
+					create("UIStroke")({ Thickness = 1.5, Color = Color3.fromRGB(150, 90, 12) }),
+				}) or nil,
 			}),
 
 			StatText({
@@ -146,10 +168,10 @@ local function StatRow(definition, value, layoutOrder, secondary)
 	})
 end
 
-local function StatsHUD(values, secondaries)
+local function StatsHUD(values, secondaries, badges)
 	local rows = {}
 	for index, definition in ipairs(StatsConfig.Order) do
-		rows[index] = StatRow(definition, values[definition.Key], index, secondaries[definition.Key])
+		rows[index] = StatRow(definition, values[definition.Key], index, secondaries[definition.Key], badges[definition.Key])
 	end
 
 	return create("ScreenGui")({
@@ -213,8 +235,23 @@ function HUD_Controller:KnitStart()
 		end,
 	}
 
+	-- Friend Boost multiplier ("x1.3") on the money icon, empty (hidden) while there is no bonus
+	local boost = source(player:GetAttribute(FriendBoostConfig.MultiplierAttribute) or 1)
+	player:GetAttributeChangedSignal(FriendBoostConfig.MultiplierAttribute):Connect(function()
+		boost(player:GetAttribute(FriendBoostConfig.MultiplierAttribute) or 1)
+	end)
+	local badges = {
+		Coins = function()
+			local multiplier = boost()
+			if multiplier <= 1.0001 then
+				return ""
+			end
+			return (("x%.1f"):format(multiplier):gsub("%.0$", ""))
+		end,
+	}
+
 	Vide.mount(function()
-		return StatsHUD(values, secondaries)
+		return StatsHUD(values, secondaries, badges)
 	end, player:WaitForChild("PlayerGui"))
 
 	-- leaderstats are created by the server once the profile has loaded (can take a few seconds)

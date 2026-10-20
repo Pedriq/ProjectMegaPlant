@@ -34,7 +34,7 @@ local Reward_Service = Knit.CreateService({
 	},
 })
 
-local Watering_Service, PlantCycle_Service, Stats_Service, Plant_Service, Upgrade_Service
+local Watering_Service, PlantCycle_Service, Stats_Service, Plant_Service, Upgrade_Service, FriendBoost_Service
 
 local random = Random.new()
 local pourState = {} -- [player] = { Water, Timer, Combo, LastBeat, Remainder }
@@ -72,7 +72,9 @@ local function payBeat(player, final)
 	local multiplier = 1
 	local lucky = false
 
-	local coins = state.Water * WaterConfig.CoinsPerWater * multiplier + state.Remainder
+	-- Friend Boost: +10% money per friend in the server (applied before rounding, so small payouts still gain)
+	local coins = state.Water * WaterConfig.CoinsPerWater * multiplier * FriendBoost_Service:GetMultiplier(player)
+		+ state.Remainder
 	local whole = math.floor(coins)
 	state.Remainder = coins - whole
 	state.Water = 0
@@ -133,7 +135,7 @@ local function checkGoal()
 		for userId in pairs(Watering_Service:GetContributions(cycle.CycleId)) do
 			local player = Players:GetPlayerByUserId(userId)
 			if player then
-				Stats_Service:AddCoins(player, stage.BonusCoins)
+				Stats_Service:AddCoins(player, math.floor(stage.BonusCoins * FriendBoost_Service:GetMultiplier(player) + 0.5))
 			end
 		end
 		Reward_Service.Client.StageReached:FireAll(stageIndex, stage.Name, stage.BonusCoins, cycle.PlantId)
@@ -178,6 +180,7 @@ local function onPlantGrown(cycleId, plantId)
 			if firstHarvest then
 				coins += harvest.FirstHarvestBonus
 			end
+			coins = math.floor(coins * FriendBoost_Service:GetMultiplier(player) + 0.5) -- Friend Boost
 			Stats_Service:AddCoins(player, coins)
 			local plantsGrown = Stats_Service:AddStat(player, "PlantsGrown", 1)
 			Reward_Service.Client.PlantHarvested:Fire(player, {
@@ -199,6 +202,7 @@ function Reward_Service:KnitStart()
 	Watering_Service = Knit.GetService("Watering_Service")
 	PlantCycle_Service = Knit.GetService("PlantCycle_Service")
 	Stats_Service = Knit.GetService("Stats_Service")
+	FriendBoost_Service = Knit.GetService("FriendBoost_Service")
 	Plant_Service = Knit.GetService("Plant_Service")
 	Upgrade_Service = Knit.GetService("Upgrade_Service")
 
