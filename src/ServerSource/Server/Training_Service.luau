@@ -5,6 +5,7 @@ local ServerScriptService = game:GetService("ServerScriptService")
 local Knit = require(ReplicatedStorage.Packages.Knit)
 local TrainingConfig = require(ReplicatedStorage.SharedSource.Datas.TrainingConfig)
 local HoldSessions = require(ServerScriptService.ServerSource.Utilities.HoldSessions)
+local BarbellRig = require(ServerScriptService.ServerSource.Utilities.BarbellRig)
 
 --[[
 	Training zones (Workspace/Garden/TrainingZone/<Zone>/<Activity>/Main, see TrainingConfig).
@@ -26,6 +27,7 @@ local Training_Service = Knit.CreateService({
 local Stats_Service, Notification_Service
 
 local sessions = HoldSessions.new()
+local trainingRoot -- Workspace/Garden/TrainingZone (set in setupStations)
 local active = {} -- [player] = training state
 
 ---- Helpers
@@ -110,6 +112,10 @@ local function stopTraining(player)
 	for _, connection in ipairs(state.Connections) do
 		connection:Disconnect()
 	end
+	if state.Barbell then
+		-- back on the rack (at once if the character is already gone)
+		state.Barbell:Stop(not (state.Character and state.Character.Parent))
+	end
 	if state.Track then
 		state.Track:Stop(0.1)
 		state.Track:Destroy()
@@ -192,6 +198,9 @@ local function startTraining(player, station)
 
 	player:SetAttribute(TrainingConfig.Attribute, station.Id)
 	state.Track = playAnimation(humanoid, station.Activity)
+	if station.Activity.Barbell and trainingRoot then
+		state.Barbell = BarbellRig.Start(character, station.Main, trainingRoot, station.Activity.Barbell)
+	end
 
 	-- anything that removes the character ends the training
 	table.insert(state.Connections, humanoid.Died:Connect(function()
@@ -257,6 +266,7 @@ local function setupStations()
 		return
 	end
 
+	trainingRoot = root
 	for zoneId in pairs(TrainingConfig.Zones) do
 		local zone = root:WaitForChild(zoneId, 10)
 		for activityId, activity in pairs(TrainingConfig.Activities) do

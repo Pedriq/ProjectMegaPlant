@@ -81,6 +81,8 @@ TrainingConfig.Zones = {
 --[[
 	Stat       the stat that grows
 	Pose       "Lying" (on their back on Main) or "Standing" (upright on Main)
+	Barbell    (optional) { LiftTime, ReturnTime }: the barbell of the station's bench is lifted off its rack into the
+	           player's hands for the training and put back afterwards (BarbellRig)
 	YawOffset  (optional) degrees the character is turned about Y from the way Main faces. The Mobility treadmills are
 	           built with Main facing AWAY from the console, so the runner is turned 180 to face it.
 	Animation  looped animation played on the character, per rig type, or nil for none.
@@ -93,7 +95,14 @@ TrainingConfig.Activities = {
 		ActionText = "Train Strength",
 		Title = "Training Strength",
 		Pose = "Lying",
-		Animation = nil, -- TODO: weightlifting animation
+		Animation = {
+			R15 = "rbxassetid://136989898338167", -- bench press (R6 has none: the character just stays lying down)
+		},
+		-- the rack's barbell is lifted off the rack into the player's hands while training (see BarbellRig)
+		Barbell = {
+			LiftTime = 0.55, -- seconds from the rack to the hands
+			ReturnTime = 0.45, -- seconds from the hands back onto the rack
+		},
 	},
 	Mobility = {
 		Stat = "Mobility",
