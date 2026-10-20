@@ -81,6 +81,8 @@ TrainingConfig.Zones = {
 --[[
 	Stat       the stat that grows
 	Pose       "Lying" (on their back on Main) or "Standing" (upright on Main)
+	YawOffset  (optional) degrees the character is turned about Y from the way Main faces. The Mobility treadmills are
+	           built with Main facing AWAY from the console, so the runner is turned 180 to face it.
 	Animation  looped animation played on the character, per rig type, or nil for none.
 	           Strength has none yet: the character just stays lying down.
 	Title      text shown above the Cancel button
@@ -98,6 +100,7 @@ TrainingConfig.Activities = {
 		ActionText = "Train Mobility",
 		Title = "Training Mobility",
 		Pose = "Standing",
+		YawOffset = 180, -- Main faces away from the treadmill's console in every zone: run TOWARD the console
 		Animation = {
 			R15 = "rbxassetid://507767714", -- Roblox default R15 run
 			R6 = "rbxassetid://180426354", -- Roblox default R6 run/walk

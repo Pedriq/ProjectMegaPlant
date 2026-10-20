@@ -53,7 +53,8 @@ end
 local function getTrainingCFrame(station, humanoid, root)
 	local main = station.Main
 	local top = main.Position + Vector3.new(0, main.Size.Y / 2, 0)
-	local yaw = getYaw(main)
+	-- the way the character faces: Main's direction, turned by the activity's YawOffset (see TrainingConfig)
+	local yaw = getYaw(main) * CFrame.Angles(0, math.rad(station.Activity.YawOffset or 0), 0)
 
 	if station.Activity.Pose == "Lying" then
 		-- on their back, head toward Main's look direction
